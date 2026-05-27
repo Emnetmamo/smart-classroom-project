@@ -1,5 +1,5 @@
 import { useClassroom } from "@/lib/classroom-store";
-import { Panel, Stat, Pill } from "./ui";
+import { Panel, Stat, Pill } from "../ui";
 import { Lightbulb, Thermometer, Wind, Users, Activity, Video, MonitorPlay } from "lucide-react";
 
 export function Dashboard() {
