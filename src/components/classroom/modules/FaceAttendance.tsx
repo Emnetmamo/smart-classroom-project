@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
-import { ScanFace, Camera, CameraOff } from "lucide-react";
+import { ScanFace, Camera, CameraOff, UserCheck, UserX } from "lucide-react";
 
-// Software replacement for facial recognition hardware:
-// uses webcam (or simulator) + manual student match to model the workflow.
 export function FaceAttendance() {
-  const { students, checkIn, log } = useClassroom();
+  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, log } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -35,7 +33,7 @@ export function FaceAttendance() {
 
   function simulateScan(studentId: string) {
     setScanning(true);
-    setDetected(studentId);
+    setDetected(`S:${studentId}`);
     const s = students.find((x) => x.id === studentId);
     log("Face Recognition", `Analyzing facial embedding for ${s?.name}…`);
     setTimeout(() => {
@@ -45,11 +43,30 @@ export function FaceAttendance() {
     }, 900);
   }
 
+  function simulateTeacher(teacherId: string) {
+    setScanning(true);
+    setDetected(`T:${teacherId}`);
+    const t = teachers.find((x) => x.id === teacherId);
+    log("Face Recognition", `Verifying instructor ${t?.name}…`);
+    setTimeout(() => {
+      checkInTeacher(teacherId);
+      setScanning(false);
+      setTimeout(() => setDetected(null), 1500);
+    }, 900);
+  }
+
+  const detectedLabel = () => {
+    if (!detected) return null;
+    const [k, id] = detected.split(":");
+    if (k === "S") return students.find((s) => s.id === id)?.name;
+    return teachers.find((t) => t.id === id)?.name;
+  };
+
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><ScanFace className="w-6 h-6 text-primary" /> Facial Recognition Attendance</h1>
-        <p className="text-sm text-muted-foreground">Hardware replacement: browser webcam + simulated embedding match (Erenso module).</p>
+        <p className="text-sm text-muted-foreground">Verifies instructor (auto-starts screen share + recording) and checks in students.</p>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -76,27 +93,53 @@ export function FaceAttendance() {
               </div>
             )}
             {detected && (
-              <div className="absolute bottom-3 left-3 right-3 bg-success/20 border border-[color:var(--success)]/40 text-[color:var(--success)] px-3 py-2 rounded-md text-sm backdrop-blur">
-                ✓ Match: {students.find((s) => s.id === detected)?.name} (confidence 96%)
+              <div className="absolute bottom-3 left-3 right-3 bg-[color:var(--success)]/20 border border-[color:var(--success)]/40 text-[color:var(--success)] px-3 py-2 rounded-md text-sm backdrop-blur">
+                ✓ Match: {detectedLabel()} (confidence 96%)
               </div>
             )}
           </div>
           <style>{`@keyframes scan {0%{top:0}100%{top:100%}}`}</style>
-        </Panel>
 
-        <Panel title="Simulate face scan" subtitle="Pick a student to emulate detection">
-          <div className="grid grid-cols-2 gap-2 max-h-[420px] overflow-y-auto">
-            {students.map((s) => (
-              <button key={s.id}
-                disabled={s.present || scanning}
-                onClick={() => simulateScan(s.id)}
-                className="text-left p-3 rounded-md border border-border bg-secondary/30 hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed">
-                <div className="text-sm font-medium">{s.name}</div>
-                <div className="text-xs text-muted-foreground">{s.id} {s.present && `· ✓ ${s.checkInTime}`}</div>
-              </button>
-            ))}
+          <div className="mt-4 p-3 rounded-md bg-secondary/40 border border-border/50 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {teacherPresent ? <UserCheck className="w-4 h-4 text-[color:var(--success)]" /> : <UserX className="w-4 h-4 text-muted-foreground" />}
+              <span>Instructor: <strong>{currentTeacher ?? "Not verified"}</strong></span>
+            </div>
+            {teacherPresent && (
+              <button onClick={checkOutTeacher} className="px-2 py-1 rounded bg-secondary border border-border">Sign out</button>
+            )}
           </div>
         </Panel>
+
+        <div className="space-y-6">
+          <Panel title="Verify instructor" subtitle="Triggers auto screen share + recording for the active session">
+            <div className="grid grid-cols-2 gap-2">
+              {teachers.map((t) => (
+                <button key={t.id}
+                  disabled={scanning || (teacherPresent && currentTeacher === t.name)}
+                  onClick={() => simulateTeacher(t.id)}
+                  className="text-left p-3 rounded-md border border-border bg-primary/5 hover:bg-primary/10 disabled:opacity-50">
+                  <div className="text-sm font-medium">{t.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{t.id}</div>
+                </button>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel title="Check in students" subtitle="Alphabetical · simulated facial scan">
+            <div className="grid grid-cols-2 gap-2 max-h-[360px] overflow-y-auto">
+              {students.map((s) => (
+                <button key={s.id}
+                  disabled={s.present || scanning}
+                  onClick={() => simulateScan(s.id)}
+                  className="text-left p-3 rounded-md border border-border bg-secondary/30 hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="text-sm font-medium">{s.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{s.id}{s.present && ` · ✓ ${s.checkInTime}`}</div>
+                </button>
+              ))}
+            </div>
+          </Panel>
+        </div>
       </div>
     </div>
   );
