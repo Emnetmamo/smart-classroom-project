@@ -208,11 +208,10 @@ const initialStudents: Student[] = [
 ];
 
 const initialTeachers: Teacher[] = [
+  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
   { id: "T-AYB", username: "ayalew", name: "Dr. Ayalew B.", email: "ayalew.b@aau.edu.et", phone: "+251 911 000001", department: "Computer Science", avatar: teacherAyalew },
   { id: "T-DGM", username: "dagmawi", name: "Dr. Dagmawi L.", email: "dagmawi.l@aau.edu.et", phone: "+251 911 000002", department: "Computer Science", avatar: teacherDagmawi },
-  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science" },
-  { id: "T-DID", username: "dida", name: "Dr. Dida M.", email: "dida.m@aau.edu.et", phone: "+251 911 000004", department: "Computer Science" },
-  { id: "T-YRG", username: "yaregal", name: "Dr. Yaregal A.", email: "yaregal.a@aau.edu.et", phone: "+251 911 000005", department: "Computer Science" },
+  { id: "T-SOL", username: "solomon", name: "Dr. Solomon T.", email: "solomon.t@aau.edu.et", phone: "+251 911 000006", department: "Computer Science" },
 ];
 
 const initialClassrooms: Classroom[] = [
@@ -223,28 +222,30 @@ const initialClassrooms: Classroom[] = [
 
 const allStudentIds = initialStudents.map((s) => s.id);
 
+// Preloaded lecture decks shared by the verified instructor.
+const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
+const NETWORKS_MATERIAL = { title: "Overview of Computer Networks", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
+
 const initialCourses: Course[] = [
-  { id: "C-6104", code: "CoSc 6104", name: "Advanced Algorithms", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6314", code: "CoSc 6314", name: "Distributed Systems", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6252", code: "CoSc 6252", name: "AI & NLP", instructorId: "T-YRG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6316", code: "CoSc 6316", name: "Information Retrieval", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6302", code: "CoSc 6302", name: "Machine Learning", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6102", code: "CoSc 6102", name: "Algorithms", instructorId: "T-DID", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-ACN", code: "CoSc 6201", name: "Advanced Computer Networks", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-EMB", code: "CoSc 6202", name: "Embedded Systems", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-SMC", code: "CoSc 6203", name: "Smart Computing", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-CYB", code: "CoSc 6204", name: "Cyber Security", instructorId: "T-SOL", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
 ];
 
 const initialSessions: SessionRow[] = [
-  { id: "S1",  courseId: "C-6104", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { title: "CoSc 6104 · Algorithms W1", type: "slides", preloaded: true } },
-  { id: "S2",  courseId: "C-6314", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6314 · Distributed Systems Intro", type: "slides", preloaded: true } },
-  { id: "S3",  courseId: "C-6252", classroomId: "R-A319", instructorId: "T-YRG", day: 1, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S4",  courseId: "C-6316", classroomId: "R-A319", instructorId: "T-AYB", day: 2, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S5",  courseId: "C-6302", classroomId: "R-A319", instructorId: "T-MLG", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6302 · ML Notes", type: "doc", preloaded: true } },
-  { id: "S6",  courseId: "C-6104", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S7",  courseId: "C-6102", classroomId: "R-A319", instructorId: "T-DID", day: 3, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6102 · Algorithms Lecture", type: "slides", preloaded: true } },
-  { id: "S8",  courseId: "C-6252", classroomId: "R-A319", instructorId: "T-YRG", day: 3, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S9",  courseId: "C-6316", classroomId: "R-A319", instructorId: "T-AYB", day: 4, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S10", courseId: "C-6302", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular" },
-  { id: "S11", courseId: "C-6314", classroomId: "R-A319", instructorId: "T-DGM", day: 5, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S12", courseId: "C-6102", classroomId: "R-A319", instructorId: "T-DID", day: 5, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6102 · Algorithms Lecture", type: "slides", preloaded: true } },
+  { id: "S1",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S2",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S3",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "13:30", end: "14:30", kind: "regular" },
+  { id: "S4",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 2, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S5",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S6",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 3, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S7",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "10:30", end: "11:30", kind: "regular" },
+  { id: "S8",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 3, start: "13:30", end: "14:30", kind: "regular" },
+  { id: "S9",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S10", courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S11", courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 5, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S12", courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 5, start: "10:30", end: "11:30", kind: "regular" },
 ];
 
 // Anchor sim clock to a Monday 08:35 so demo defaults to an active session.
