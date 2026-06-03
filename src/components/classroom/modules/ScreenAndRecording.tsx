@@ -82,7 +82,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const bytes = new Uint8Array(await response.arrayBuffer());
         const doc = await pdfjs.getDocument({ data: bytes }).promise;
-        if (cancelled) { await doc.destroy(); return; }
+        if (cancelled) { await doc.cleanup(); return; }
         pdfDocRef.current = doc;
         setPdfPages(doc.numPages);
         setPdfStatus("ready");
@@ -99,7 +99,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
       controller.abort();
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
-      void pdfDocRef.current?.destroy();
+      void pdfDocRef.current?.cleanup();
       pdfDocRef.current = null;
     };
   }, [materialUrl, hasMaterial, schedule.material?.title, log]);
@@ -136,7 +136,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
         if (!ctx) return;
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const task = page.render({ canvasContext: ctx, viewport });
+        const task = page.render({ canvas, canvasContext: ctx, viewport });
         renderTaskRef.current = task;
         await task.promise;
       } catch (error) {
