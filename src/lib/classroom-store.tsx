@@ -316,7 +316,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // course takes the floor (with their preloaded material if available).
     if (scheduleMode === "demo") {
       if (!currentTeacherId) {
-        return { course: "Idle — waiting for instructor", instructor: "—", start: "--:--", end: "--:--", room: "A319", active: false, sessionId: null, courseId: null, ...overrideSchedule };
+        return { course: "Idle — waiting for instructor", instructor: "—", start: "--:--", end: "--:--", room: "A304", active: false, sessionId: null, courseId: null, ...overrideSchedule };
       }
       const course = courses.find((c) => c.instructorId === currentTeacherId);
       const sess = sessions.find((s) => s.instructorId === currentTeacherId && s.material) ?? sessions.find((s) => s.instructorId === currentTeacherId);
@@ -326,7 +326,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         instructor: teacher?.name ?? "—",
         start: sess?.start ?? simNow.toTimeString().slice(0, 5),
         end: sess?.end ?? "--:--",
-        room: "A319",
+        room: "A304",
         active: true,
         sessionId: sess?.id ?? null,
         courseId: course?.id ?? null,
@@ -336,10 +336,10 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }
 
     // SCHEDULE mode: driven by the (simulated) clock.
-    const { active, next } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+    const { active, next } = findActiveOrNext(sessions, "A304", classrooms, simNow);
     const s = active ?? next;
     if (!s) {
-      return { course: "No session scheduled", instructor: "—", start: "--:--", end: "--:--", room: "A319", active: false, sessionId: null, courseId: null, ...overrideSchedule };
+      return { course: "No session scheduled", instructor: "—", start: "--:--", end: "--:--", room: "A304", active: false, sessionId: null, courseId: null, ...overrideSchedule };
     }
     const course = courses.find((c) => c.id === s.courseId);
     const teacher = teachers.find((t) => t.id === s.instructorId);
@@ -349,7 +349,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       instructor: teacher?.name ?? "—",
       start: s.start,
       end: s.end,
-      room: room?.name ?? "A319",
+      room: room?.name ?? "A304",
       active: !!active,
       sessionId: s.id,
       courseId: s.courseId,
@@ -392,7 +392,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // SCHEDULE mode guard: only the instructor scheduled for the active slot
     // may take the floor. Anyone else gets notified that the slot is taken.
     if (scheduleMode === "schedule") {
-      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      const { active } = findActiveOrNext(sessions, "A304", classrooms, simNow);
       if (active && active.instructorId !== teacherId) {
         const scheduledTeacher = teachers.find((x) => x.id === active.instructorId);
         const c = courses.find((x) => x.id === active.courseId);
@@ -422,7 +422,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // Decide whether to auto-start the lecture.
     let startSession = true;
     if (scheduleMode === "schedule") {
-      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      const { active } = findActiveOrNext(sessions, "A304", classrooms, simNow);
       startSession = !!active && active.instructorId === teacherId;
     }
 
