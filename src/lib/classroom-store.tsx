@@ -533,6 +533,52 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [students, teacherPresent]);
 
+  // Keep sim clock in sync with the real wall clock unless the lateness simulator has explicitly overridden it.
+  useEffect(() => {
+    if (simOverride) return;
+    const t = setInterval(() => setSimNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, [simOverride]);
+
+  // Auto-end a session when its end time passes (schedule mode, real-time driven).
+  const endedSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (scheduleMode !== "schedule" || !teacherPresent || !schedule.active || !schedule.sessionId) return;
+    const [eh, em] = schedule.end.split(":").map(Number);
+    const nowMin = simNow.getHours() * 60 + simNow.getMinutes();
+    if (nowMin >= eh * 60 + em && endedSessionRef.current !== schedule.sessionId) {
+      endedSessionRef.current = schedule.sessionId;
+      log("Schedule", `Course ${schedule.course} reached its end time — finalising attendance`, "info");
+      checkOutTeacher();
+    }
+  }, [simNow, schedule.sessionId, schedule.end, schedule.active, scheduleMode, teacherPresent]);
+
+  // Notify the active instructor whenever a student's attention drops below 50%
+  // (especially important while the lecture is being recorded so they can react).
+  const lowAttnRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!teacherPresent || !currentTeacherId) return;
+    const low = students.filter((s) => s.present && (s.attention ?? 100) < 50);
+    const recording = devices.recording;
+    low.forEach((s) => {
+      if (lowAttnRef.current.has(s.id)) return;
+      lowAttnRef.current.add(s.id);
+      const subject = recording ? "Low attention during recording" : "Low attention alert";
+      setNotifications((prev) => [{
+        id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Attention Monitor",
+        toRole: "instructor", toId: currentTeacherId,
+        subject,
+        body: `${s.name} has dropped to ${Math.round(s.attention ?? 0)}% attention${recording ? " — the lecture is currently being recorded, consider a quick re-engagement." : "."}`,
+      }, ...prev]);
+      log("Attention", `Alert sent to ${currentTeacher}: ${s.name} attention ${Math.round(s.attention ?? 0)}%`, "warn");
+    });
+    // Reset the dedup set when the student recovers, so a new dip re-alerts.
+    students.forEach((s) => {
+      if ((s.attention ?? 100) >= 65) lowAttnRef.current.delete(s.id);
+    });
+  }, [students, teacherPresent, currentTeacherId, currentTeacher, devices.recording]);
+
+
   // CRUD
   const upsertStudent = (s: Student) => setStudents((prev) => prev.some((x) => x.id === s.id) ? prev.map((x) => x.id === s.id ? s : x) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
   const deleteStudent = (id: string) => setStudents((prev) => prev.filter((x) => x.id !== id));
