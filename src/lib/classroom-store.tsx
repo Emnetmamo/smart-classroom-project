@@ -312,12 +312,14 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionRow[]>(initialSessions);
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [teacherAttendance, setTeacherAttendance] = useState<TeacherAttendance[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<StudentAttendanceRecord[]>([]);
   const [teacherPresent, setTeacherPresent] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [simNow, setSimNow] = useState<Date>(buildInitialSimNow);
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("schedule");
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("demo");
   const [simOverride, setSimOverride] = useState(false); // becomes true when lateness simulator overrides the wall clock
   const advanceSim = (m: number) => { setSimOverride(true); setSimNow((d) => new Date(d.getTime() + m * 60000)); };
 
