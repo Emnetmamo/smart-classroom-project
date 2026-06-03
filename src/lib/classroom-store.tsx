@@ -401,7 +401,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
           id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Smart Classroom",
           toRole: "instructor", toId: teacherId,
           subject: "Slot already scheduled",
-          body: `You were recognized in A319, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
+          body: `You were recognized in A304, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
         }, ...prev]);
         // Still record presence (face was seen) so lights/attendance respond, but do not start the session.
         setTeacherPresent(true);

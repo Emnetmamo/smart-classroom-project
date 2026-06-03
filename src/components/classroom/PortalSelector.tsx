@@ -22,7 +22,7 @@ export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
           </div>
           <div className="text-center">
             <div className="text-2xl font-semibold gradient-text">Smart Classroom</div>
-            <div className="text-xs text-muted-foreground">AAU CS · Room A319 · Integrated Control Suite</div>
+            <div className="text-xs text-muted-foreground">AAU CS · Room A304 · Integrated Control Suite</div>
           </div>
         </div>
         <p className="text-center text-sm text-muted-foreground mb-10">Choose a portal to continue.</p>
