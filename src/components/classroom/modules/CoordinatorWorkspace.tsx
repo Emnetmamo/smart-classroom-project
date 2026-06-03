@@ -194,6 +194,7 @@ function InstructorsTab() {
           <Field label="Email"><input className={inputCls} type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} required /></Field>
           <Field label="Phone"><input className={inputCls} value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
           <Field label="Department"><input className={inputCls} value={edit.department} onChange={(e) => setEdit({ ...edit, department: e.target.value })} /></Field>
+          <div className="sm:col-span-2"><AvatarField value={edit.avatar} onChange={(avatar) => setEdit({ ...edit, avatar })} /></div>
           <div className="sm:col-span-2 flex gap-2"><button className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm">Save</button><button type="button" onClick={() => setEdit(null)} className="px-3 py-1.5 rounded bg-secondary border border-border text-sm">Cancel</button></div>
         </form>
       )}
