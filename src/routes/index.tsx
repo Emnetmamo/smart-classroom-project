@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ClassroomProvider, useClassroom } from "@/lib/classroom-store";
+import { ClassroomProvider } from "@/lib/classroom-store";
 import { Shell, type ModuleId } from "@/components/classroom/Shell";
 import { Dashboard } from "@/components/classroom/modules/Dashboard";
 import { FaceAttendance } from "@/components/classroom/modules/FaceAttendance";
@@ -63,8 +63,6 @@ function Index() {
 
 function SystemPortalShell({ onBack }: { onBack: () => void }) {
   const [active, setActive] = useState<ModuleId>("dashboard");
-  // useClassroom not needed here, but ensures provider mounts
-  useClassroom();
   return (
     <Shell active={active} onChange={setActive} onSwitchPortal={onBack} portalLabel="System Portal">
       {active === "dashboard" && <Dashboard />}
