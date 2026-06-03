@@ -9,7 +9,7 @@ const MATCH_THRESHOLD = 0.5; // max descriptor distance to accept a match
 const STABLE_HITS = 2; // consecutive frames before marking attendance
 
 export function FaceAttendance() {
-  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, schedule, scheduleMode, setScheduleMode, simNow, setSimNow, log } = useClassroom();
+  const { students, teacherPresent, currentTeacher, checkIn, checkOutTeacher, schedule, scheduleMode, setScheduleMode, simNow, setSimNow, log } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const matcherRef = useRef<FaceMatcher | null>(null);
   const loopRef = useRef<number | null>(null);
@@ -20,9 +20,8 @@ export function FaceAttendance() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [encodeFailed, setEncodeFailed] = useState<string[]>([]);
 
-  // People we can recognize = those with a reference portrait.
+  // Student-only recognition. Instructor verification now lives in Screen Sharing & Recording.
   const knownStudents = students.filter((s) => s.avatar);
-  const knownTeachers = teachers.filter((t) => t.avatar);
 
   useEffect(() => () => stopCamera(), []);
 
@@ -31,38 +30,28 @@ export function FaceAttendance() {
     setModelState("loading");
     log("Face Recognition", "Loading neural models & encoding reference faces…");
     try {
-      const people: KnownPerson[] = [
-        ...knownStudents.map((s) => ({ label: s.id, name: s.name, imageUrl: s.avatar! })),
-        ...knownTeachers.map((t) => ({ label: t.id, name: t.name, imageUrl: t.avatar! })),
-      ];
+      const people: KnownPerson[] = knownStudents.map((s) => ({ label: s.id, name: s.name, imageUrl: s.avatar! }));
       const { matcher, failed } = await buildMatcher(people, MATCH_THRESHOLD);
       matcherRef.current = matcher;
       setEncodeFailed(failed);
       setModelState("ready");
       log("Face Recognition", `Encoded ${people.length - failed.length} reference faces${failed.length ? ` (failed: ${failed.join(", ")})` : ""}`, failed.length ? "warn" : "success");
       return matcher;
-    } catch (e) {
+    } catch {
       setModelState("error");
       log("Face Recognition", "Failed to load face models — check connection", "error");
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students, teachers]);
+  }, [students]);
 
   function nameForLabel(label: string) {
-    return students.find((s) => s.id === label)?.name ?? teachers.find((t) => t.id === label)?.name ?? label;
+    return students.find((s) => s.id === label)?.name ?? label;
   }
 
   function markPerson(label: string) {
     const student = students.find((s) => s.id === label);
-    if (student) {
-      if (!student.present) checkIn(student.id, "face");
-      return;
-    }
-    const teacher = teachers.find((t) => t.id === label);
-    if (teacher) {
-      if (!(teacherPresent && currentTeacher === teacher.name)) checkInTeacher(teacher.id);
-    }
+    if (student && !student.present) checkIn(student.id, "face");
   }
 
   async function tick() {
@@ -231,7 +220,7 @@ export function FaceAttendance() {
               <div className="mb-2 text-[11px] text-[color:var(--warning)]">⚠ No face found in portrait: {encodeFailed.join(", ")}</div>
             )}
             <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
-              {[...knownTeachers, ...knownStudents].map((p) => {
+              {knownStudents.map((p) => {
                 const student = students.find((s) => s.id === p.id);
                 const present = student?.present ?? (teacherPresent && currentTeacher === p.name);
                 return (
