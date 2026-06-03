@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { useClassroom, DAY_LABELS } from "@/lib/classroom-store";
+import { useClassroom, DAY_LABELS, type StudentAttendanceRecord } from "@/lib/classroom-store";
 import { Panel, Stat } from "./ui";
-import { LogOut, CalendarDays, Bell, Send, Inbox, Pencil, Activity } from "lucide-react";
+import { LogOut, CalendarDays, Bell, Send, Inbox, Pencil, Activity, ClipboardList, Download } from "lucide-react";
 
 export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; onLogout: () => void }) {
-  const { teachers, sessions, courses, classrooms, students, notifications, sendNotification, markNotificationRead, upsertSession } = useClassroom();
+  const { teachers, sessions, courses, classrooms, students, notifications, sendNotification, markNotificationRead, upsertSession, studentAttendance } = useClassroom();
   const me = teachers.find((t) => t.id === teacherId);
-  const [tab, setTab] = useState<"dash" | "sched" | "inbox" | "compose">("dash");
+  const [tab, setTab] = useState<"dash" | "sched" | "attendance" | "inbox" | "compose">("dash");
 
   const mySessions = useMemo(() => sessions.filter((s) => s.instructorId === teacherId).sort((a, b) => a.day - b.day || a.start.localeCompare(b.start)), [sessions, teacherId]);
   const teachingHours = mySessions.reduce((acc, s) => {
