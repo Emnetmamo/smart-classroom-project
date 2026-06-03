@@ -1,9 +1,9 @@
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel, Stat, Pill } from "../ui";
-import { Lightbulb, Thermometer, Wind, Users, Activity, Video, MonitorPlay } from "lucide-react";
+import { Lightbulb, Thermometer, Wind, Users, Activity, Video, MonitorPlay, Calendar, Sparkles } from "lucide-react";
 
 export function Dashboard() {
-  const { students, sensors, devices, logs, schedule } = useClassroom();
+  const { students, sensors, devices, logs, schedule, scheduleMode, setScheduleMode } = useClassroom();
   const present = students.filter((s) => s.present).length;
   const avgAttention = present > 0
     ? Math.round(students.filter((s) => s.present).reduce((a, s) => a + (s.attention ?? 0), 0) / present)
@@ -15,6 +15,25 @@ export function Dashboard() {
         <h1 className="text-2xl font-semibold">Live Classroom Overview</h1>
         <p className="text-sm text-muted-foreground">All modules are reacting to shared state in real time.</p>
       </div>
+
+      <Panel title="Operating mode" subtitle="Pick how the classroom decides which course takes the floor">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <button onClick={() => setScheduleMode("demo")}
+            className={`p-3 rounded-lg border text-left transition ${scheduleMode === "demo"
+              ? "border-primary bg-primary/15 ring-2 ring-primary/40"
+              : "border-border bg-secondary/40 hover:bg-secondary"}`}>
+            <div className="flex items-center gap-2 font-medium"><Sparkles className="w-4 h-4 text-primary" /> Demo mode <span className="text-[10px] uppercase ml-1 text-muted-foreground">default</span></div>
+            <div className="text-xs text-muted-foreground mt-1">Idle until any registered teacher is verified — their course takes the floor immediately. Best for demonstrations.</div>
+          </button>
+          <button onClick={() => setScheduleMode("schedule")}
+            className={`p-3 rounded-lg border text-left transition ${scheduleMode === "schedule"
+              ? "border-primary bg-primary/15 ring-2 ring-primary/40"
+              : "border-border bg-secondary/40 hover:bg-secondary"}`}>
+            <div className="flex items-center gap-2 font-medium"><Calendar className="w-4 h-4 text-primary" /> Schedule mode</div>
+            <div className="text-xs text-muted-foreground mt-1">Driven by the real (or simulated) clock — only the instructor scheduled in the active slot can start the session.</div>
+          </button>
+        </div>
+      </Panel>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat label="Occupancy" value={`${present}/${students.length}`} hint={present > 0 ? "Class in session" : "Empty"} tone={present > 0 ? "good" : "default"} />
@@ -54,18 +73,6 @@ export function Dashboard() {
           </div>
         </Panel>
       </div>
-
-      <Panel title="Module integration map" subtitle="How modules share data">
-        <pre className="text-xs text-muted-foreground overflow-x-auto leading-relaxed">{`
-  [Face Recognition] ──┐
-                       ├──► [Attendance Service] ──► [Presence] ──┬──► [Light Control]
-  [RFID Scanner]    ───┘                                          ├──► [Temperature]
-                                                                  └──► [Air Quality]
-  [Schedule] ──► [Screen Sharing] ──► [Lecture Recording]
-  [Cameras]  ──► [Attention Monitor] ──► alerts + reports
-  [System Admin] ◄── audit logs from all modules
-`}</pre>
-      </Panel>
     </div>
   );
 }
