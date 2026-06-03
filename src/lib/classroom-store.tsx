@@ -560,7 +560,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   return (
     <ClassroomCtx.Provider value={{
       students, teachers, classrooms, courses, sessions, recordings, notifications, logs,
-      teacherPresent, currentTeacher, sensors, devices, schedule,
+      teacherPresent, currentTeacher, sensors, devices, schedule, scheduleMode, setScheduleMode,
       simNow, setSimNow, advanceSim,
       setSensor, setDevice,
       checkIn, multiFaceDetect, checkInTeacher, checkOutTeacher, checkOutAll, setAttention,
