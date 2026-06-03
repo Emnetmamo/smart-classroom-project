@@ -152,10 +152,16 @@ export function StudentPortal({ studentId, onLogout }: { studentId: string; onLo
 
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         <nav className="flex gap-2 border-b border-border pb-3">
-          {[["sched","Schedule",CalendarDays],["materials","Materials & Recordings",Inbox],["inbox","Inbox",Bell],["compose","Compose",Send]].map(([id,label,Icon]) => {
-            const I = Icon as typeof CalendarDays;
-            return <button key={id as string} onClick={() => setTab(id as never)} className={`text-sm px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 ${tab===id?"bg-primary text-primary-foreground border-primary":"bg-secondary/40 border-border"}`}><I className="w-3.5 h-3.5" />{label}</button>;
-          })}
+          {([
+            { id: "sched", label: "Schedule", Icon: CalendarDays },
+            { id: "materials", label: "Materials & Recordings", Icon: Inbox },
+            { id: "inbox", label: "Inbox", Icon: Bell },
+            { id: "compose", label: "Compose", Icon: Send },
+          ] as const).map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => setTab(id)} className={`text-sm px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 ${tab===id?"bg-primary text-primary-foreground border-primary":"bg-secondary/40 border-border"}`}>
+              <Icon className="w-3.5 h-3.5" />{label}
+            </button>
+          ))}
         </nav>
 
         {tab === "sched" && (
