@@ -144,6 +144,8 @@ type Ctx = {
   sensors: Sensors;
   devices: Devices;
   schedule: CurrentSchedule;
+  scheduleMode: ScheduleMode;
+  setScheduleMode: (m: ScheduleMode) => void;
 
   // sim clock
   simNow: Date;
