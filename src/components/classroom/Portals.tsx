@@ -194,7 +194,17 @@ export function StudentPortal({ studentId, onLogout }: { studentId: string; onLo
                     <div>
                       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Recordings</div>
                       {recs.length === 0 ? <p className="text-xs text-muted-foreground">No recordings yet.</p> :
-                        <ul className="space-y-1.5 text-sm">{recs.map((r) => <li key={r.id} className="p-2 rounded border border-border bg-secondary/30 flex justify-between"><span>🎥 {r.title}</span><span className="text-[10px] text-muted-foreground">{r.date} · {Math.round(r.durationSec/60)}m</span></li>)}</ul>}
+                        <ul className="space-y-1.5 text-sm">{recs.map((r) => (
+                          <li key={r.id} className="p-2 rounded border border-border bg-secondary/30 space-y-1.5">
+                            <div className="flex justify-between"><span>🎥 {r.title}</span><span className="text-[10px] text-muted-foreground">{r.date} · {Math.round(r.durationSec/60)}m</span></div>
+                            {r.url ? (
+                              <div className="space-y-1.5">
+                                <video controls src={r.url} className="w-full rounded border border-border max-h-48" />
+                                <a href={r.url} download={`${r.title.replace(/\s/g, "_")}.webm`} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-primary text-primary-foreground">⬇ Download</a>
+                              </div>
+                            ) : <div className="text-[10px] text-muted-foreground">Processing — file will be available after the lecture is recorded.</div>}
+                          </li>
+                        ))}</ul>}
                     </div>
                   </div>
                 </Panel>
