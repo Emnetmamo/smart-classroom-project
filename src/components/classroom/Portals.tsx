@@ -79,6 +79,10 @@ export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; o
           </Panel>
         )}
 
+        {tab === "attendance" && (
+          <InstructorAttendanceTab teacherId={teacherId} />
+        )}
+
         {tab === "inbox" && (
           <Panel title={`Inbox (${inbox.filter((n) => !n.read).length} unread)`}>
             {inbox.length === 0 && <p className="text-sm text-muted-foreground">No messages.</p>}
