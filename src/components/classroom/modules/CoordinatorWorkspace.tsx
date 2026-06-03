@@ -172,10 +172,11 @@ function InstructorsTab() {
   return (
     <Panel title="Instructors" action={<button onClick={() => setEdit(blank)} className="text-xs px-2.5 py-1 rounded bg-primary text-primary-foreground inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>}>
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Emp ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th></th></tr></thead>
+        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Photo</th><th>Emp ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th></th></tr></thead>
         <tbody>{teachers.map((t) => (
           <tr key={t.id} className="border-b border-border/40">
-            <td className="py-2 font-mono text-xs">{t.id}</td><td>{t.name}</td><td className="text-xs">{t.email}</td><td className="text-xs">{t.phone}</td><td className="text-xs">{t.department}</td>
+            <td className="py-2">{t.avatar ? <img src={t.avatar} alt={t.name} className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-secondary border border-border grid place-items-center text-[10px] text-muted-foreground">{t.name.split(" ").map((x) => x[0]).slice(0, 2).join("")}</div>}</td>
+            <td className="font-mono text-xs">{t.id}</td><td>{t.name}</td><td className="text-xs">{t.email}</td><td className="text-xs">{t.phone}</td><td className="text-xs">{t.department}</td>
             <td className="text-right space-x-1">
               <IconBtn onClick={() => setEdit(t)}><Pencil className="w-3 h-3" /></IconBtn>
               <IconBtn danger onClick={() => { deleteTeacher(t.id); log("Coordinator", `Deleted instructor ${t.name}`, "warn"); }}><Trash2 className="w-3 h-3" /></IconBtn>
