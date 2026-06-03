@@ -34,8 +34,8 @@ export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; o
       </header>
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <nav className="flex gap-2 border-b border-border pb-3">
-          {[["dash","Dashboard"],["sched","My schedule"],["inbox","Inbox"],["compose","Compose"]].map(([id,label]) => (
+        <nav className="flex flex-wrap gap-2 border-b border-border pb-3">
+          {[["dash","Dashboard"],["sched","My schedule"],["attendance","Attendance"],["inbox","Inbox"],["compose","Compose"]].map(([id,label]) => (
             <button key={id} onClick={() => setTab(id as never)} className={`text-sm px-3 py-1.5 rounded-md border ${tab===id?"bg-primary text-primary-foreground border-primary":"bg-secondary/40 border-border"}`}>{label}</button>
           ))}
         </nav>
