@@ -288,6 +288,18 @@ function ComposeNotification({ fromRole, fromName, toRoles, students }: {
       </div>
       <button onClick={send} disabled={!subject || !body} className="mt-3 px-3 py-2 rounded bg-primary text-primary-foreground text-sm inline-flex items-center gap-2 disabled:opacity-50"><Send className="w-4 h-4" /> Send</button>
       {sent && <span className="ml-3 text-xs text-[color:var(--success)]">Sent ✓</span>}
+
+      <div className="mt-6">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Sent messages ({sentMessages.length})</div>
+        {sentMessages.length === 0 ? <p className="text-xs text-muted-foreground">You haven't sent any messages yet.</p> :
+          <div className="space-y-2">{sentMessages.map((n) => (
+            <div key={n.id} className="p-2.5 rounded-md border border-border bg-secondary/20">
+              <div className="flex justify-between text-[11px] text-muted-foreground"><span>To {n.toRole}</span><span>{n.time}</span></div>
+              <div className="text-sm font-medium">{n.subject}</div>
+              <div className="text-xs text-muted-foreground whitespace-pre-wrap">{n.body}</div>
+            </div>
+          ))}</div>}
+      </div>
     </Panel>
   );
 }
