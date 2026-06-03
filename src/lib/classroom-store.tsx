@@ -3,6 +3,11 @@ import studentBetty from "@/assets/student-betty.jpg";
 import studentEmnet from "@/assets/student-emnet.jpg";
 import teacherDagmawi from "@/assets/teacher-dagmawi.jpg";
 import teacherAyalew from "@/assets/teacher-ayalew.jpg";
+import teacherMulugeta from "@/assets/teacher-mulugeta.jpg";
+import smartComputingSlides from "@/assets/smart-computing-slides.pdf.asset.json";
+import computerNetworksSlides from "@/assets/computer-networks-slides.pdf.asset.json";
+
+export type ScheduleMode = "demo" | "schedule";
 
 export type Lateness = "on-time" | "warning" | "late";
 
