@@ -3,10 +3,12 @@ import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
 import {
   MonitorPlay, Video, Square, Download, FileText, AlertCircle,
-  ScanFace, Camera, CameraOff, Loader2, UserCheck, ExternalLink,
+  ScanFace, Camera, CameraOff, Loader2, UserCheck, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { buildMatcher, detectAndMatch, type KnownPerson, type LiveMatch } from "@/lib/face-recognition";
 import type { FaceMatcher } from "@vladmandic/face-api";
+import type { PDFDocumentProxy } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 
 const MATCH_THRESHOLD = 0.5;
 const STABLE_HITS = 2;
@@ -19,8 +21,8 @@ const STABLE_HITS = 2;
 //      preloaded slides auto-load (or the instructor can override with their screen).
 //   3. Recording (screen + mic) is implicit and starts the moment sharing goes live.
 //
-// Preloaded PDFs are fetched as same-origin blob URLs to bypass the "blocked by Chrome"
-// message some browsers show when embedding cross-origin PDFs in an <iframe>.
+// Preloaded PDFs are rendered page-by-page onto a canvas with PDF.js. This avoids
+// Chrome's built-in PDF viewer entirely, so it cannot show "blocked by Chrome".
 export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const {
     setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
@@ -33,6 +35,10 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const extraTracksRef = useRef<MediaStreamTrack[]>([]);
+  const pdfFrameRef = useRef<HTMLDivElement>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
 
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
@@ -50,24 +56,101 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const autoMode = devices.sharing && !liveStream;
   const hasMaterial = !!schedule.material?.preloaded;
   const materialUrl = schedule.material?.url;
+  const [pdfStatus, setPdfStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfPages, setPdfPages] = useState(0);
+  const [pdfRenderTick, setPdfRenderTick] = useState(0);
 
-  // Serve preloaded PDFs from a same-origin blob URL so Chrome doesn't block the iframe.
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!materialUrl) { setBlobUrl(null); return; }
+    if (!materialUrl || !hasMaterial) {
+      setPdfStatus("idle");
+      setPdfPages(0);
+      setPdfPage(1);
+      return;
+    }
     let cancelled = false;
-    let created: string | null = null;
-    fetch(materialUrl)
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
-      .then((b) => {
+    const controller = new AbortController();
+    setPdfStatus("loading");
+    setPdfPages(0);
+    setPdfPage(1);
+
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        const response = await fetch(materialUrl, { signal: controller.signal, credentials: "same-origin" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const doc = await pdfjs.getDocument({ data: bytes }).promise;
+        if (cancelled) { await doc.cleanup(); return; }
+        pdfDocRef.current = doc;
+        setPdfPages(doc.numPages);
+        setPdfStatus("ready");
+        log("Smart Screen", `Loaded preloaded slides in secure canvas viewer: ${schedule.material?.title ?? "slides"}`, "success");
+      } catch {
         if (cancelled) return;
-        const pdf = new Blob([b], { type: "application/pdf" });
-        created = URL.createObjectURL(pdf);
-        setBlobUrl(created);
-      })
-      .catch(() => log("Smart Screen", "Could not fetch preloaded material", "warn"));
-    return () => { cancelled = true; if (created) URL.revokeObjectURL(created); };
-  }, [materialUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+        setPdfStatus("error");
+        log("Smart Screen", "Could not render preloaded PDF slides", "error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      renderTaskRef.current?.cancel();
+      renderTaskRef.current = null;
+      void pdfDocRef.current?.cleanup();
+      pdfDocRef.current = null;
+    };
+  }, [materialUrl, hasMaterial, schedule.material?.title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onResize = () => setPdfRenderTick((n) => n + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const doc = pdfDocRef.current;
+    const canvas = pdfCanvasRef.current;
+    if (!doc || !canvas || pdfStatus !== "ready" || liveStream || !autoMode) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        renderTaskRef.current?.cancel();
+        const page = await doc.getPage(pdfPage);
+        if (cancelled) return;
+        const frame = pdfFrameRef.current;
+        const frameW = Math.max(frame?.clientWidth ?? 1280, 320);
+        const frameH = Math.max(frame?.clientHeight ?? 720, 180);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const base = page.getViewport({ scale: 1 });
+        const scale = Math.min(frameW / base.width, frameH / base.height) * dpr;
+        const viewport = page.getViewport({ scale });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const task = page.render({ canvas, canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+        await task.promise;
+      } catch (error) {
+        if (!cancelled && !(error instanceof Error && error.name === "RenderingCancelledException")) {
+          setPdfStatus("error");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [pdfStatus, pdfPage, liveStream, autoMode, pdfRenderTick, materialUrl]);
 
   useEffect(() => () => { stopMediaTracks(); stopCamera(); }, []);
 
@@ -289,21 +372,27 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
               <>
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
 
-                {!liveStream && autoMode && hasMaterial && blobUrl && (
-                  <iframe title={schedule.material!.title} src={blobUrl} className="absolute inset-0 w-full h-full bg-white" />
-                )}
-
-                {!liveStream && autoMode && hasMaterial && !blobUrl && materialUrl && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
-                    <div className="text-center max-w-md">
-                      <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
-                      <div className="text-xs uppercase tracking-widest text-muted-foreground">Loading preloaded material…</div>
-                      <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
-                      <a href={materialUrl} target="_blank" rel="noreferrer"
-                        className="mt-4 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border bg-secondary hover:bg-secondary/80">
-                        <ExternalLink className="w-3.5 h-3.5" /> Open in new tab
-                      </a>
-                    </div>
+                {!liveStream && autoMode && hasMaterial && materialUrl && (
+                  <div ref={pdfFrameRef} className="absolute inset-0 bg-background grid place-items-center p-3">
+                    {pdfStatus === "ready" && <canvas ref={pdfCanvasRef} className="max-w-full max-h-full shadow-lg" />}
+                    {pdfStatus !== "ready" && (
+                      <div className="text-center max-w-md text-foreground">
+                        {pdfStatus === "loading" ? <Loader2 className="w-14 h-14 mx-auto text-primary mb-4 animate-spin" /> : <FileText className="w-14 h-14 mx-auto text-primary mb-4" />}
+                        <div className="text-xs uppercase tracking-widest opacity-70">{pdfStatus === "error" ? "Slide renderer needs reload" : "Loading preloaded material…"}</div>
+                        <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
+                      </div>
+                    )}
+                    {pdfStatus === "ready" && pdfPages > 1 && (
+                      <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs shadow-sm">
+                        <button onClick={() => setPdfPage((p) => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="p-1 rounded hover:bg-secondary disabled:opacity-40" aria-label="Previous slide">
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span>{pdfPage} / {pdfPages}</span>
+                        <button onClick={() => setPdfPage((p) => Math.min(pdfPages, p + 1))} disabled={pdfPage >= pdfPages} className="p-1 rounded hover:bg-secondary disabled:opacity-40" aria-label="Next slide">
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
