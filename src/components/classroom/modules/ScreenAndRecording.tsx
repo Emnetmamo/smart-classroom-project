@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
-import { MonitorPlay, Video, Square, Download, FileText, AlertCircle, ExternalLink } from "lucide-react";
+import { MonitorPlay, Video, Square, Download, FileText, AlertCircle } from "lucide-react";
 
 // Smart Screen Sharing + Lecture Recording.
 // Auto-driven by schedule + teacher face verification.
