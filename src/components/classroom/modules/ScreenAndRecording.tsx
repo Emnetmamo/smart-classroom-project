@@ -1,25 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
-import { MonitorPlay, Video, Square, Download, FileText, AlertCircle } from "lucide-react";
+import { MonitorPlay, Video, Square, Download, FileText, AlertCircle, ExternalLink } from "lucide-react";
 
 // Smart Screen Sharing + Lecture Recording.
 // Auto-driven by schedule + teacher face verification.
-// - On teacher verification during an active session: devices.sharing = true.
-//   If preloaded material exists, it is shown as the shared canvas.
+// - On teacher verification: devices.sharing = true.
+//   If preloaded material exists, the deck is shown (and is downloadable).
 //   Otherwise the instructor is prompted to share their actual screen.
-// - Recording starts implicitly the moment sharing becomes active.
+// - Recording starts implicitly the moment sharing becomes active and now
+//   captures the microphone audio together with the screen.
 export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
-  const { setDevice, log, schedule, devices, teacherPresent, currentTeacher, checkOutTeacher } = useClassroom();
+  const { setDevice, log, schedule, devices, teacherPresent, currentTeacher, checkOutTeacher, addRecording } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const extraTracksRef = useRef<MediaStreamTrack[]>([]);
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
   const autoMode = devices.sharing && !liveStream; // sharing driven by store w/ no manual stream → preloaded material mode
   const hasMaterial = !!schedule.material?.preloaded;
+  const materialUrl = schedule.material?.url;
 
   useEffect(() => () => stopMediaTracks(), []);
 
@@ -38,26 +41,55 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
 
   async function startManualShare() {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+
+      // Add the microphone so the instructor's voice is always recorded,
+      // even when the OS does not provide system/tab audio.
+      let mic: MediaStream | null = null;
+      try {
+        mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        log("Recording", "Microphone unavailable — recording screen audio only", "warn");
+      }
+
+      // Build a combined stream: screen video + every available audio track.
+      const combined = new MediaStream();
+      display.getVideoTracks().forEach((t) => combined.addTrack(t));
+      display.getAudioTracks().forEach((t) => combined.addTrack(t));
+      mic?.getAudioTracks().forEach((t) => { combined.addTrack(t); extraTracksRef.current.push(t); });
+
+      if (videoRef.current) videoRef.current.srcObject = display; // preview is muted to avoid feedback
       setLiveStream(true);
       setDevice("sharing", true);
       setDevice("recording", true); // implicit: recording starts with sharing
-      log("Smart Screen", "Instructor shared their screen — recording started automatically", "success");
+      log("Smart Screen", "Instructor shared their screen — recording (screen + audio) started", "success");
 
       // begin recording
       chunksRef.current = [];
-      const rec = new MediaRecorder(stream, { mimeType: "video/webm" });
+      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : "video/webm";
+      const rec = new MediaRecorder(combined, { mimeType: mime });
       rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        setRecordedUrl(URL.createObjectURL(blob));
-        log("Recording", `Saved ${(blob.size / 1024 / 1024).toFixed(1)} MB · students notified`, "success");
+        const url = URL.createObjectURL(blob);
+        setRecordedUrl(url);
+        // Persist so students can download / review it in their portal.
+        addRecording({
+          sessionId: schedule.sessionId ?? "live",
+          courseId: schedule.courseId ?? "live",
+          title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
+          date: new Date().toISOString().slice(0, 10),
+          durationSec: elapsed,
+          url,
+        });
+        log("Recording", `Saved ${(blob.size / 1024 / 1024).toFixed(1)} MB with audio · students notified`, "success");
       };
       rec.start(1000);
       recRef.current = rec;
 
-      stream.getVideoTracks()[0].addEventListener("ended", stopMediaTracks);
+      display.getVideoTracks()[0].addEventListener("ended", stopMediaTracks);
     } catch {
       log("Smart Screen", "Screen share cancelled / unsupported", "warn");
     }
@@ -69,6 +101,8 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
     const v = videoRef.current;
     const tracks = (v?.srcObject as MediaStream | null)?.getTracks() ?? [];
     tracks.forEach((t) => t.stop());
+    extraTracksRef.current.forEach((t) => t.stop());
+    extraTracksRef.current = [];
     if (v) v.srcObject = null;
     setLiveStream(false);
     setDevice("sharing", false);
@@ -83,7 +117,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><Icon className="w-6 h-6 text-primary" /> {title}</h1>
         <p className="text-sm text-muted-foreground">
-          Implicit: triggered by schedule + teacher face verification. Recording starts automatically the moment sharing goes live.
+          Implicit: triggered by schedule + teacher face verification. Recording captures the screen and microphone audio, and starts automatically the moment sharing goes live.
         </p>
       </header>
 
@@ -93,7 +127,11 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
           <div className="aspect-video bg-black rounded-lg overflow-hidden border border-border relative">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
 
-            {autoMode && hasMaterial && schedule.material && (
+            {autoMode && hasMaterial && materialUrl && (
+              <iframe title={schedule.material!.title} src={materialUrl} className="absolute inset-0 w-full h-full bg-white" />
+            )}
+
+            {autoMode && hasMaterial && !materialUrl && schedule.material && (
               <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
                 <div className="text-center max-w-md">
                   <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
@@ -140,8 +178,14 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
           <div className="mt-4 flex flex-wrap gap-2">
             {!liveStream && teacherPresent && (
               <button onClick={startManualShare} className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
-                <MonitorPlay className="w-4 h-4" /> Override · share my screen
+                <MonitorPlay className="w-4 h-4" /> {hasMaterial ? "Override · share my screen" : "Share my screen"}
               </button>
+            )}
+            {hasMaterial && materialUrl && (
+              <a href={materialUrl} target="_blank" rel="noopener noreferrer"
+                className="px-3 py-2 rounded-md bg-secondary border border-border text-sm inline-flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" /> Open material
+              </a>
             )}
             {devices.sharing && (
               <button onClick={teacherPresent ? checkOutTeacher : stopMediaTracks}
@@ -171,7 +215,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
             <Row k="Recording" v={devices.recording ? `Recording · ${fmt(elapsed)}` : "Off"} />
           </dl>
           <div className="mt-4 text-xs text-muted-foreground leading-relaxed">
-            Recording is implicit: it starts the instant sharing becomes active, whether the source is preloaded material or the instructor's screen.
+            Recording is implicit: it starts the instant sharing becomes active and now includes microphone audio so lectures are captured with sound.
           </div>
         </Panel>
       </div>
