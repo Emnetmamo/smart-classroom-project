@@ -75,6 +75,34 @@ export type Recording = {
   url?: string; // object URL or download link when a real recording exists
 };
 
+export type TeacherAttendance = {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  courseId: string | null;
+  courseName: string;
+  sessionId: string | null;
+  date: string;          // YYYY-MM-DD
+  checkInTime: string;   // HH:MM:SS
+  checkOutTime?: string;
+  lateness: Lateness;
+  scheduleMode: ScheduleMode;
+};
+
+export type StudentAttendanceRecord = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  courseId: string | null;
+  courseName: string;
+  sessionId: string | null;
+  date: string;
+  checkInTime?: string;
+  present: boolean;
+  lateness?: Lateness;
+  method?: "face" | "rfid";
+};
+
 export type Notification = {
   id: string;
   time: string;
@@ -137,6 +165,8 @@ type Ctx = {
   recordings: Recording[];
   notifications: Notification[];
   logs: LogEntry[];
+  teacherAttendance: TeacherAttendance[];
+  studentAttendance: StudentAttendanceRecord[];
 
   // live state
   teacherPresent: boolean;
@@ -282,12 +312,14 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionRow[]>(initialSessions);
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [teacherAttendance, setTeacherAttendance] = useState<TeacherAttendance[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<StudentAttendanceRecord[]>([]);
   const [teacherPresent, setTeacherPresent] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [simNow, setSimNow] = useState<Date>(buildInitialSimNow);
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("schedule");
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("demo");
   const [simOverride, setSimOverride] = useState(false); // becomes true when lateness simulator overrides the wall clock
   const advanceSim = (m: number) => { setSimOverride(true); setSimNow((d) => new Date(d.getTime() + m * 60000)); };
 
@@ -417,9 +449,28 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       startSession = !!active && active.instructorId === teacherId;
     }
 
+    // Compute lateness for the teacher and record their attendance entry.
+    const course = courses.find((c) => c.instructorId === teacherId);
+    const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
+    const sessStart = sess?.start ?? simNow.toTimeString().slice(0, 5);
+    const lateness = computeLateness(sessStart, simNow);
+    setTeacherAttendance((prev) => [{
+      id: crypto.randomUUID(),
+      teacherId: t.id,
+      teacherName: t.name,
+      courseId: course?.id ?? null,
+      courseName: course ? `${course.code} · ${course.name}` : "Ad-hoc session",
+      sessionId: sess?.id ?? null,
+      date: simNow.toISOString().slice(0, 10),
+      checkInTime: simNow.toLocaleTimeString(),
+      lateness,
+      scheduleMode,
+    }, ...prev]);
+    log("Teacher Attendance",
+      `${t.name} signed in — ${lateness === "late" ? "LATE" : lateness === "warning" ? "10-min warning" : "ON TIME"}`,
+      lateness === "late" ? "error" : lateness === "warning" ? "warn" : "success");
+
     if (startSession) {
-      const course = courses.find((c) => c.instructorId === teacherId);
-      const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
       setDevices((d) => ({ ...d, sharing: true, recording: true }));
       log("Smart Screen", sess?.material?.preloaded
         ? `Auto-loaded preloaded material: ${sess.material.title}`
@@ -432,20 +483,43 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
 
   const checkOutTeacher: Ctx["checkOutTeacher"] = () => {
     if (!teacherPresent) return;
-    // Save a recording stub if we were recording
-    if (devices.recording && schedule.sessionId && schedule.courseId) {
-      const dur = 60 + Math.floor(Math.random() * 600);
-      setRecordings((prev) => [
-        { id: crypto.randomUUID(), sessionId: schedule.sessionId!, courseId: schedule.courseId!, title: `${schedule.course} · ${simNow.toLocaleDateString()}`, date: simNow.toISOString().slice(0, 10), durationSec: dur },
-        ...prev,
-      ]);
-    }
     log("Face Recognition", `Teacher ${currentTeacher} left — finalising attendance & stopping share/recording`, "info");
+
+    // Close the open teacher attendance record (if any).
+    setTeacherAttendance((prev) => {
+      const idx = prev.findIndex((r) => r.teacherId === currentTeacherId && !r.checkOutTime);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], checkOutTime: simNow.toLocaleTimeString() };
+      return next;
+    });
+
+    // Snapshot per-student attendance for this session/course.
+    const courseId = schedule.courseId;
+    const sessionId = schedule.sessionId;
+    const courseName = schedule.course;
+    const date = simNow.toISOString().slice(0, 10);
+    setStudentAttendance((prev) => [
+      ...students.map<StudentAttendanceRecord>((s) => ({
+        id: crypto.randomUUID(),
+        studentId: s.id,
+        studentName: s.name,
+        courseId,
+        courseName,
+        sessionId,
+        date,
+        checkInTime: s.checkInTime,
+        present: s.present,
+        lateness: s.lateness,
+        method: s.checkInMethod ?? undefined,
+      })),
+      ...prev,
+    ]);
+
     setTeacherPresent(false);
     setCurrentTeacher(null);
     setCurrentTeacherId(null);
     setDevices((d) => ({ ...d, sharing: false, recording: false }));
-    // Finalise the roll: anyone not present at sign-out stays absent for this session.
     setStudents((prev) => {
       const presentNow = prev.filter((s) => s.present);
       log("Attendance", `Session attendance recorded — ${presentNow.length} present / ${prev.length - presentNow.length} absent`, "success");
@@ -608,6 +682,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   return (
     <ClassroomCtx.Provider value={{
       students, teachers, classrooms, courses, sessions, recordings, notifications, logs,
+      teacherAttendance, studentAttendance,
       teacherPresent, currentTeacher, sensors, devices, schedule, scheduleMode, setScheduleMode,
       simNow, setSimNow, advanceSim,
       setSensor, setDevice,

@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { useClassroom, DAY_LABELS } from "@/lib/classroom-store";
+import { useClassroom, DAY_LABELS, type StudentAttendanceRecord } from "@/lib/classroom-store";
 import { Panel, Stat } from "./ui";
-import { LogOut, CalendarDays, Bell, Send, Inbox, Pencil, Activity } from "lucide-react";
+import { LogOut, CalendarDays, Bell, Send, Inbox, Pencil, Activity, ClipboardList, Download } from "lucide-react";
 
 export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; onLogout: () => void }) {
-  const { teachers, sessions, courses, classrooms, students, notifications, sendNotification, markNotificationRead, upsertSession } = useClassroom();
+  const { teachers, sessions, courses, classrooms, students, notifications, sendNotification, markNotificationRead, upsertSession, studentAttendance } = useClassroom();
   const me = teachers.find((t) => t.id === teacherId);
-  const [tab, setTab] = useState<"dash" | "sched" | "inbox" | "compose">("dash");
+  const [tab, setTab] = useState<"dash" | "sched" | "attendance" | "inbox" | "compose">("dash");
 
   const mySessions = useMemo(() => sessions.filter((s) => s.instructorId === teacherId).sort((a, b) => a.day - b.day || a.start.localeCompare(b.start)), [sessions, teacherId]);
   const teachingHours = mySessions.reduce((acc, s) => {
@@ -34,8 +34,8 @@ export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; o
       </header>
 
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <nav className="flex gap-2 border-b border-border pb-3">
-          {[["dash","Dashboard"],["sched","My schedule"],["inbox","Inbox"],["compose","Compose"]].map(([id,label]) => (
+        <nav className="flex flex-wrap gap-2 border-b border-border pb-3">
+          {[["dash","Dashboard"],["sched","My schedule"],["attendance","Attendance"],["inbox","Inbox"],["compose","Compose"]].map(([id,label]) => (
             <button key={id} onClick={() => setTab(id as never)} className={`text-sm px-3 py-1.5 rounded-md border ${tab===id?"bg-primary text-primary-foreground border-primary":"bg-secondary/40 border-border"}`}>{label}</button>
           ))}
         </nav>
@@ -77,6 +77,10 @@ export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; o
               })}</tbody>
             </table>
           </Panel>
+        )}
+
+        {tab === "attendance" && (
+          <InstructorAttendanceTab teacherId={teacherId} />
         )}
 
         {tab === "inbox" && (
@@ -303,3 +307,93 @@ function ComposeNotification({ fromRole, fromName, toRoles, students }: {
     </Panel>
   );
 }
+
+function InstructorAttendanceTab({ teacherId }: { teacherId: string }) {
+  const { studentAttendance, courses } = useClassroom();
+  const myCourseIds = useMemo(() => new Set(courses.filter((c) => c.instructorId === teacherId).map((c) => c.id)), [courses, teacherId]);
+  const rows = useMemo(
+    () => studentAttendance.filter((r) => r.courseId && myCourseIds.has(r.courseId)).sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [studentAttendance, myCourseIds],
+  );
+  const [courseFilter, setCourseFilter] = useState<string>("all");
+  const filtered = courseFilter === "all" ? rows : rows.filter((r) => r.courseId === courseFilter);
+
+  function exportCSV() {
+    const headers = ["Date", "Course", "Student ID", "Student", "Status", "Check-in", "Lateness", "Method"];
+    const lines = filtered.map((r) => [
+      r.date, r.courseName, r.studentId, r.studentName,
+      r.present ? "Present" : "Absent",
+      r.checkInTime ?? "—",
+      r.lateness ?? (r.present ? "on-time" : "—"),
+      r.method ?? "—",
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...lines].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `attendance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
+
+  const myCourses = courses.filter((c) => myCourseIds.has(c.id));
+
+  return (
+    <Panel title="Attendance record" subtitle="Per-session attendance for the courses you teach"
+      action={
+        <button onClick={exportCSV} disabled={filtered.length === 0}
+          className="text-xs px-2.5 py-1.5 rounded bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-50">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
+      }>
+      <div className="flex items-center gap-2 mb-3 text-xs">
+        <ClipboardList className="w-4 h-4 text-muted-foreground" />
+        <span className="text-muted-foreground">Filter by course:</span>
+        <select className="px-2 py-1 rounded bg-input border border-border" value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
+          <option value="all">All my courses</option>
+          {myCourses.map((c) => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
+        </select>
+        <span className="ml-auto text-muted-foreground">{filtered.length} record{filtered.length === 1 ? "" : "s"}</span>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No attendance recorded yet. Sign in to a session and end it to capture a record.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground border-b border-border">
+              <th className="py-2">Date</th><th>Course</th><th>Student</th><th>Status</th><th>Check-in</th><th>Lateness</th><th>Method</th>
+            </tr></thead>
+            <tbody>{filtered.map((r) => (
+              <tr key={r.id} className="border-b border-border/40">
+                <td className="py-2 font-mono text-xs">{r.date}</td>
+                <td className="text-xs">{r.courseName}</td>
+                <td className="text-xs"><div>{r.studentName}</div><div className="text-[10px] text-muted-foreground font-mono">{r.studentId}</div></td>
+                <td>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded ${r.present ? "bg-[color:var(--success)]/20 text-[color:var(--success)]" : "bg-destructive/20 text-destructive"}`}>
+                    {r.present ? "Present" : "Absent"}
+                  </span>
+                </td>
+                <td className="text-xs font-mono">{r.checkInTime ?? "—"}</td>
+                <td className="text-xs">
+                  {r.present
+                    ? <LatenessChip value={r.lateness ?? "on-time"} />
+                    : <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="text-xs uppercase">{r.method ?? "—"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function LatenessChip({ value }: { value: NonNullable<StudentAttendanceRecord["lateness"]> }) {
+  const map = {
+    "on-time": ["bg-[color:var(--success)]/20", "text-[color:var(--success)]", "On time"],
+    warning: ["bg-[color:var(--warning)]/25", "text-[color:var(--warning)]", "Warning"],
+    late: ["bg-destructive/25", "text-destructive", "Late"],
+  } as const;
+  const [bg, fg, label] = map[value];
+  return <span className={`text-[11px] px-1.5 py-0.5 rounded ${bg} ${fg}`}>{label}</span>;
+}
+

@@ -9,7 +9,7 @@ const MATCH_THRESHOLD = 0.5; // max descriptor distance to accept a match
 const STABLE_HITS = 2; // consecutive frames before marking attendance
 
 export function FaceAttendance() {
-  const { students, teacherPresent, currentTeacher, checkIn, checkOutTeacher, schedule, scheduleMode, setScheduleMode, simNow, setSimNow, log } = useClassroom();
+  const { students, teacherPresent, currentTeacher, checkIn, checkOutTeacher, schedule, simNow, setSimNow, log } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const matcherRef = useRef<FaceMatcher | null>(null);
   const loopRef = useRef<number | null>(null);
@@ -178,22 +178,7 @@ export function FaceAttendance() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Schedule mode" subtitle="How the system decides which course takes the floor">
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setScheduleMode("demo")}
-                className={`p-2.5 rounded-md border text-sm text-left ${scheduleMode === "demo" ? "border-primary bg-primary/10" : "border-border bg-secondary/40 hover:bg-secondary"}`}>
-                <div className="font-medium">Demo</div>
-                <div className="text-[11px] text-muted-foreground">Idle until a teacher is verified, then their course starts.</div>
-              </button>
-              <button onClick={() => setScheduleMode("schedule")}
-                className={`p-2.5 rounded-md border text-sm text-left ${scheduleMode === "schedule" ? "border-primary bg-primary/10" : "border-border bg-secondary/40 hover:bg-secondary"}`}>
-                <div className="font-medium">Schedule</div>
-                <div className="text-[11px] text-muted-foreground">Clock-driven; warns if the wrong teacher is at the slot.</div>
-              </button>
-            </div>
-          </Panel>
-
-          <Panel title="Lateness simulator" subtitle="Manually shift the clock relative to session start">
+          <Panel title="Lateness simulator" subtitle="Shift the clock relative to session start to demo lateness rules">
 
             <div className="text-xs text-muted-foreground mb-3">
               Active session: <strong>{schedule.course}</strong> · starts {schedule.start}
@@ -201,16 +186,16 @@ export function FaceAttendance() {
             </div>
             <div className="grid grid-cols-1 gap-2">
               <button onClick={() => simulateOffset(0)}
-                className="text-left p-2.5 rounded-md border border-border bg-[color:var(--success)]/10 hover:bg-[color:var(--success)]/20 inline-flex items-center gap-2 text-sm">
+                className="text-left p-3 rounded-md border-2 border-[color:var(--success)]/70 bg-[color:var(--success)]/30 hover:bg-[color:var(--success)]/45 text-foreground font-medium inline-flex items-center gap-2 text-sm shadow-sm">
                 <Clock className="w-4 h-4 text-[color:var(--success)]" /> On time (at start)
               </button>
               <button onClick={() => simulateOffset(10)}
-                className="text-left p-2.5 rounded-md border border-border bg-[color:var(--warning)]/10 hover:bg-[color:var(--warning)]/20 inline-flex items-center gap-2 text-sm">
+                className="text-left p-3 rounded-md border-2 border-[color:var(--warning)]/70 bg-[color:var(--warning)]/30 hover:bg-[color:var(--warning)]/45 text-foreground font-medium inline-flex items-center gap-2 text-sm shadow-sm">
                 <AlertTriangle className="w-4 h-4 text-[color:var(--warning)]" /> Warning — 10 min late
               </button>
               <button onClick={() => simulateOffset(30)}
-                className="text-left p-2.5 rounded-md border border-border bg-destructive/10 hover:bg-destructive/20 inline-flex items-center gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4 text-destructive-foreground" /> Late — 30 min late
+                className="text-left p-3 rounded-md border-2 border-destructive/70 bg-destructive/30 hover:bg-destructive/45 text-foreground font-medium inline-flex items-center gap-2 text-sm shadow-sm">
+                <AlertTriangle className="w-4 h-4 text-destructive" /> Late — 30 min late
               </button>
             </div>
           </Panel>

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, ScanFace, CreditCard, Lightbulb, Thermometer, Wind,
-  Eye, MonitorPlay, Video, ShieldCheck, Activity, LogOut, Clock, FastForward,
+  Eye, MonitorPlay, Video, ShieldCheck, Activity, LogOut, Clock, FastForward, Rewind,
 } from "lucide-react";
 import { useClassroom } from "@/lib/classroom-store";
 import { cn } from "@/lib/utils";
@@ -87,11 +87,20 @@ export function Shell({
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary/30">
               <Clock className="w-3 h-3" /> Sim {simNow.toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}
             </span>
+            <button onClick={() => advanceSim(-30)} title="Rewind simulated clock 30 min"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-secondary">
+              <Rewind className="w-3 h-3" /> -30m
+            </button>
+            <button onClick={() => advanceSim(-10)} title="Rewind simulated clock 10 min"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-secondary">
+              <Rewind className="w-3 h-3" /> -10m
+            </button>
             <button onClick={() => advanceSim(10)} title="Advance simulated clock 10 min"
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-secondary">
               <FastForward className="w-3 h-3" /> +10m
             </button>
-            <button onClick={() => advanceSim(30)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-secondary">
+            <button onClick={() => advanceSim(30)} title="Advance simulated clock 30 min"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-secondary">
               <FastForward className="w-3 h-3" /> +30m
             </button>
           </div>

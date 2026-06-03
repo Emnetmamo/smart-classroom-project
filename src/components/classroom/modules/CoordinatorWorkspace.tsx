@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useClassroom, DAY_LABELS, type Student, type Teacher, type Classroom, type Course, type SessionRow } from "@/lib/classroom-store";
 import { Panel, Stat } from "../ui";
 import {
   LayoutDashboard, Users, GraduationCap, Building2, BookOpen, CalendarPlus, CalendarDays,
-  BarChart3, Download, Mail, Bell, Trash2, Pencil, Plus, Printer,
+  BarChart3, Download, Mail, Bell, Trash2, Pencil, Plus, Printer, UserCheck,
 } from "lucide-react";
 
-type Tab = "dashboard" | "instructors" | "students" | "classrooms" | "courses" | "schedule-add" | "schedule-view" | "analytics" | "export" | "bulk-email" | "notifications";
+type Tab = "dashboard" | "instructors" | "students" | "classrooms" | "courses" | "schedule-add" | "schedule-view" | "teacher-attendance" | "analytics" | "export" | "bulk-email" | "notifications";
 
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +16,7 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: "courses", label: "Courses", icon: BookOpen },
   { id: "schedule-add", label: "Schedule course", icon: CalendarPlus },
   { id: "schedule-view", label: "View schedule", icon: CalendarDays },
+  { id: "teacher-attendance", label: "Teacher attendance", icon: UserCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "export", label: "Export", icon: Download },
   { id: "bulk-email", label: "Bulk emails", icon: Mail },
@@ -51,6 +52,7 @@ export function CoordinatorWorkspace() {
       {tab === "courses" && <CoursesTab />}
       {tab === "schedule-add" && <ScheduleAddTab />}
       {tab === "schedule-view" && <ScheduleViewTab />}
+      {tab === "teacher-attendance" && <TeacherAttendanceTab />}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "export" && <ExportTab />}
       {tab === "bulk-email" && <BulkEmailTab />}
@@ -555,3 +557,87 @@ function NotificationsTab() {
     </Panel>
   );
 }
+
+// -------- Teacher attendance --------
+function TeacherAttendanceTab() {
+  const { teacherAttendance, teachers } = useClassroom();
+  const [filter, setFilter] = useState<string>("all");
+  const filtered = useMemo(
+    () => (filter === "all" ? teacherAttendance : teacherAttendance.filter((r) => r.teacherId === filter)).slice().sort((a, b) => (a.date + a.checkInTime < b.date + b.checkInTime ? 1 : -1)),
+    [teacherAttendance, filter],
+  );
+  const counts = useMemo(() => {
+    const c = { onTime: 0, warning: 0, late: 0 };
+    filtered.forEach((r) => {
+      if (r.lateness === "on-time") c.onTime++;
+      else if (r.lateness === "warning") c.warning++;
+      else if (r.lateness === "late") c.late++;
+    });
+    return c;
+  }, [filtered]);
+
+  function exportCSV() {
+    const headers = ["Date", "Teacher", "Course", "Mode", "Check-in", "Check-out", "Lateness"];
+    const lines = filtered.map((r) => [
+      r.date, r.teacherName, r.courseName, r.scheduleMode, r.checkInTime, r.checkOutTime ?? "—", r.lateness,
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...lines].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `teacher-attendance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
+
+  return (
+    <Panel title="Teacher attendance" subtitle="Captured automatically when the verification camera confirms a teacher"
+      action={
+        <button onClick={exportCSV} disabled={filtered.length === 0}
+          className="text-xs px-2.5 py-1.5 rounded bg-primary text-primary-foreground inline-flex items-center gap-1.5 disabled:opacity-50">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
+      }>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <Stat label="Sign-ins" value={filtered.length} />
+        <Stat label="On time" value={counts.onTime} tone="good" />
+        <Stat label="Warning (10m)" value={counts.warning} tone="warn" />
+        <Stat label="Late (30m)" value={counts.late} tone="bad" />
+      </div>
+      <div className="flex items-center gap-2 mb-3 text-xs">
+        <span className="text-muted-foreground">Filter by instructor:</span>
+        <select className="px-2 py-1 rounded bg-input border border-border" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">All instructors</option>
+          {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No teacher attendance recorded yet. The verification camera in Screen Sharing logs every successful match.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground border-b border-border">
+              <th className="py-2">Date</th><th>Teacher</th><th>Course</th><th>Mode</th><th>Check-in</th><th>Check-out</th><th>Lateness</th>
+            </tr></thead>
+            <tbody>{filtered.map((r) => {
+              const tone = r.lateness === "late" ? "bg-destructive/25 text-destructive"
+                : r.lateness === "warning" ? "bg-[color:var(--warning)]/25 text-[color:var(--warning)]"
+                : "bg-[color:var(--success)]/20 text-[color:var(--success)]";
+              const label = r.lateness === "late" ? "Late (≥30m)" : r.lateness === "warning" ? "Warning (≥10m)" : "On time";
+              return (
+                <tr key={r.id} className="border-b border-border/40">
+                  <td className="py-2 font-mono text-xs">{r.date}</td>
+                  <td>{r.teacherName}</td>
+                  <td className="text-xs">{r.courseName}</td>
+                  <td className="text-xs uppercase">{r.scheduleMode}</td>
+                  <td className="text-xs font-mono">{r.checkInTime}</td>
+                  <td className="text-xs font-mono">{r.checkOutTime ?? <span className="text-muted-foreground">— still in session</span>}</td>
+                  <td><span className={`text-[11px] px-1.5 py-0.5 rounded ${tone}`}>{label}</span></td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
