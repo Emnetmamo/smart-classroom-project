@@ -3,10 +3,12 @@ import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
 import {
   MonitorPlay, Video, Square, Download, FileText, AlertCircle,
-  ScanFace, Camera, CameraOff, Loader2, UserCheck, ExternalLink,
+  ScanFace, Camera, CameraOff, Loader2, UserCheck, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { buildMatcher, detectAndMatch, type KnownPerson, type LiveMatch } from "@/lib/face-recognition";
 import type { FaceMatcher } from "@vladmandic/face-api";
+import type { PDFDocumentProxy } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 
 const MATCH_THRESHOLD = 0.5;
 const STABLE_HITS = 2;
@@ -50,24 +52,6 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const autoMode = devices.sharing && !liveStream;
   const hasMaterial = !!schedule.material?.preloaded;
   const materialUrl = schedule.material?.url;
-
-  // Serve preloaded PDFs from a same-origin blob URL so Chrome doesn't block the iframe.
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!materialUrl) { setBlobUrl(null); return; }
-    let cancelled = false;
-    let created: string | null = null;
-    fetch(materialUrl)
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
-      .then((b) => {
-        if (cancelled) return;
-        const pdf = new Blob([b], { type: "application/pdf" });
-        created = URL.createObjectURL(pdf);
-        setBlobUrl(created);
-      })
-      .catch(() => log("Smart Screen", "Could not fetch preloaded material", "warn"));
-    return () => { cancelled = true; if (created) URL.revokeObjectURL(created); };
-  }, [materialUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => { stopMediaTracks(); stopCamera(); }, []);
 
