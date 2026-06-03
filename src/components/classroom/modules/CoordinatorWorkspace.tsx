@@ -141,6 +141,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 const inputCls = "w-full px-2.5 py-1.5 rounded-md bg-input border border-border text-sm outline-none focus:border-primary";
 
+// Reusable portrait uploader → stores a data URL on the entity's `avatar`.
+function AvatarField({ value, onChange }: { value?: string; onChange: (dataUrl: string | undefined) => void }) {
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+  return (
+    <Field label="Photo (for face recognition)">
+      <div className="flex items-center gap-3">
+        {value
+          ? <img src={value} alt="portrait" className="w-12 h-12 rounded-full object-cover border border-border" />
+          : <div className="w-12 h-12 rounded-full bg-secondary border border-border grid place-items-center text-[10px] text-muted-foreground">none</div>}
+        <input type="file" accept="image/*" onChange={onFile} className="text-xs" />
+        {value && <button type="button" onClick={() => onChange(undefined)} className="text-xs px-2 py-1 rounded border border-border">Remove</button>}
+      </div>
+    </Field>
+  );
+}
+
+
 // -------- Instructors --------
 function InstructorsTab() {
   const { teachers, upsertTeacher, deleteTeacher, log } = useClassroom();
