@@ -383,19 +383,54 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const checkInTeacher: Ctx["checkInTeacher"] = (teacherId) => {
     const t = teachers.find((x) => x.id === teacherId);
     if (!t) return;
+
+    // SCHEDULE mode guard: only the instructor scheduled for the active slot
+    // may take the floor. Anyone else gets notified that the slot is taken.
+    if (scheduleMode === "schedule") {
+      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      if (active && active.instructorId !== teacherId) {
+        const scheduledTeacher = teachers.find((x) => x.id === active.instructorId);
+        const c = courses.find((x) => x.id === active.courseId);
+        log("Schedule", `${t.name} recognized, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? "this slot"} now`, "warn");
+        setNotifications((prev) => [{
+          id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Smart Classroom",
+          toRole: "instructor", toId: teacherId,
+          subject: "Slot already scheduled",
+          body: `You were recognized in A319, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
+        }, ...prev]);
+        // Still record presence (face was seen) so lights/attendance respond, but do not start the session.
+        setTeacherPresent(true);
+        setCurrentTeacher(t.name);
+        setCurrentTeacherId(t.id);
+        return;
+      }
+      if (!active) {
+        log("Schedule", `${t.name} recognized, but no session is scheduled right now`, "info");
+      }
+    }
+
     setTeacherPresent(true);
     setCurrentTeacher(t.name);
     setCurrentTeacherId(t.id);
     log("Face Recognition", `Teacher verified: ${t.name}`, "success");
-    const matches = schedule.sessionId && schedule.instructor === t.name && schedule.active;
-    if (matches) {
+
+    // Decide whether to auto-start the lecture.
+    let startSession = true;
+    if (scheduleMode === "schedule") {
+      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      startSession = !!active && active.instructorId === teacherId;
+    }
+
+    if (startSession) {
+      const course = courses.find((c) => c.instructorId === teacherId);
+      const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
       setDevices((d) => ({ ...d, sharing: true, recording: true }));
-      log("Smart Screen", schedule.material?.preloaded
-        ? `Auto-loaded preloaded material: ${schedule.material.title}`
-        : `Auto-share waiting for instructor's screen — recording armed`, "success");
-      log("Recording", `Lecture recording auto-started for ${schedule.course}`, "success");
+      log("Smart Screen", sess?.material?.preloaded
+        ? `Auto-loaded preloaded material: ${sess.material.title}`
+        : `No preloaded material — share your screen to begin (recording armed)`, "success");
+      log("Recording", `Lecture recording (screen + audio) auto-started for ${course?.name ?? "session"}`, "success");
     } else {
-      log("Schedule", `No active session matches ${t.name} right now — manual share available`, "info");
+      log("Schedule", `Recognized ${t.name} — manual share available`, "info");
     }
   };
 
