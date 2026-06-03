@@ -449,11 +449,17 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         ...prev,
       ]);
     }
-    log("Face Recognition", `Teacher ${currentTeacher} left — auto-stopping share & recording`, "info");
+    log("Face Recognition", `Teacher ${currentTeacher} left — finalising attendance & stopping share/recording`, "info");
     setTeacherPresent(false);
     setCurrentTeacher(null);
     setCurrentTeacherId(null);
     setDevices((d) => ({ ...d, sharing: false, recording: false }));
+    // Finalise the roll: anyone not present at sign-out stays absent for this session.
+    setStudents((prev) => {
+      const presentNow = prev.filter((s) => s.present);
+      log("Attendance", `Session attendance recorded — ${presentNow.length} present / ${prev.length - presentNow.length} absent`, "success");
+      return prev.map((s) => ({ ...s, present: false, checkInMethod: null, checkInTime: undefined, lateness: undefined }));
+    });
   };
 
   const checkOutAll = () => {
