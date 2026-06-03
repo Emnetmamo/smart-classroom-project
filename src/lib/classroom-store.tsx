@@ -62,7 +62,7 @@ export type SessionRow = {
   start: string;
   end: string;
   kind: "regular" | "makeup";
-  material?: { title: string; type: "slides" | "doc" | "video"; preloaded: boolean };
+  material?: { title: string; type: "slides" | "doc" | "video"; preloaded: boolean; url?: string };
 };
 
 export type Recording = {
@@ -72,6 +72,7 @@ export type Recording = {
   title: string;
   date: string;
   durationSec: number;
+  url?: string; // object URL or download link when a real recording exists
 };
 
 export type Notification = {
