@@ -21,8 +21,8 @@ const STABLE_HITS = 2;
 //      preloaded slides auto-load (or the instructor can override with their screen).
 //   3. Recording (screen + mic) is implicit and starts the moment sharing goes live.
 //
-// Preloaded PDFs are fetched as same-origin blob URLs to bypass the "blocked by Chrome"
-// message some browsers show when embedding cross-origin PDFs in an <iframe>.
+// Preloaded PDFs are rendered page-by-page onto a canvas with PDF.js. This avoids
+// Chrome's built-in PDF viewer entirely, so it cannot show "blocked by Chrome".
 export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const {
     setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
@@ -35,6 +35,10 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const extraTracksRef = useRef<MediaStreamTrack[]>([]);
+  const pdfFrameRef = useRef<HTMLDivElement>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
 
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
@@ -52,6 +56,101 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
   const autoMode = devices.sharing && !liveStream;
   const hasMaterial = !!schedule.material?.preloaded;
   const materialUrl = schedule.material?.url;
+  const [pdfStatus, setPdfStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfPages, setPdfPages] = useState(0);
+  const [pdfRenderTick, setPdfRenderTick] = useState(0);
+
+  useEffect(() => {
+    if (!materialUrl || !hasMaterial) {
+      setPdfStatus("idle");
+      setPdfPages(0);
+      setPdfPage(1);
+      return;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    setPdfStatus("loading");
+    setPdfPages(0);
+    setPdfPage(1);
+
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        const response = await fetch(materialUrl, { signal: controller.signal, credentials: "same-origin" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const doc = await pdfjs.getDocument({ data: bytes }).promise;
+        if (cancelled) { await doc.destroy(); return; }
+        pdfDocRef.current = doc;
+        setPdfPages(doc.numPages);
+        setPdfStatus("ready");
+        log("Smart Screen", `Loaded preloaded slides in secure canvas viewer: ${schedule.material?.title ?? "slides"}`, "success");
+      } catch {
+        if (cancelled) return;
+        setPdfStatus("error");
+        log("Smart Screen", "Could not render preloaded PDF slides", "error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      renderTaskRef.current?.cancel();
+      renderTaskRef.current = null;
+      void pdfDocRef.current?.destroy();
+      pdfDocRef.current = null;
+    };
+  }, [materialUrl, hasMaterial, schedule.material?.title, log]);
+
+  useEffect(() => {
+    const onResize = () => setPdfRenderTick((n) => n + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const doc = pdfDocRef.current;
+    const canvas = pdfCanvasRef.current;
+    if (!doc || !canvas || pdfStatus !== "ready" || liveStream || !autoMode) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        renderTaskRef.current?.cancel();
+        const page = await doc.getPage(pdfPage);
+        if (cancelled) return;
+        const frame = pdfFrameRef.current;
+        const frameW = Math.max(frame?.clientWidth ?? 1280, 320);
+        const frameH = Math.max(frame?.clientHeight ?? 720, 180);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const base = page.getViewport({ scale: 1 });
+        const scale = Math.min(frameW / base.width, frameH / base.height) * dpr;
+        const viewport = page.getViewport({ scale });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const task = page.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+        await task.promise;
+      } catch (error) {
+        if (!cancelled && !(error instanceof Error && error.name === "RenderingCancelledException")) {
+          setPdfStatus("error");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [pdfStatus, pdfPage, liveStream, autoMode, pdfRenderTick, materialUrl]);
 
   useEffect(() => () => { stopMediaTracks(); stopCamera(); }, []);
 
