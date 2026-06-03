@@ -167,9 +167,63 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
 
   // If sharing turns off externally (sign-out / end of session) stop everything.
   useEffect(() => {
-    if (!devices.sharing && liveStream) stopMediaTracks();
-    if (!devices.sharing) setElapsed(0);
+    if (!devices.sharing) {
+      stopMediaTracks();
+      setElapsed(0);
+    }
   }, [devices.sharing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-start canvas recording when preloaded material is rendering (no manual screen share).
+  useEffect(() => {
+    if (!teacherPresent || !autoMode || !hasMaterial || pdfStatus !== "ready") return;
+    if (recRef.current) return; // already recording
+    const canvas = pdfCanvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // canvas captureStream gives us the live slide pixels.
+        const stream = (canvas as HTMLCanvasElement).captureStream(15);
+        let mic: MediaStream | null = null;
+        try { mic = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+        catch { log("Recording", "Microphone unavailable — recording slides without audio", "warn"); }
+        mic?.getAudioTracks().forEach((t) => { stream.addTrack(t); extraTracksRef.current.push(t); });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+        chunksRef.current = [];
+        const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+          ? "video/webm;codecs=vp9,opus"
+          : "video/webm";
+        const rec = new MediaRecorder(stream, { mimeType: mime });
+        const snap = {
+          sessionId: schedule.sessionId ?? "live",
+          courseId: schedule.courseId ?? "live",
+          title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
+        };
+        rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
+        rec.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          if (blob.size < 1024) {
+            log("Recording", "Recording too short to save", "warn");
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          setRecordedUrl(url);
+          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: elapsed, url });
+          log("Recording", `Saved preloaded-slide recording · ${(blob.size / 1024 / 1024).toFixed(1)} MB — available to enrolled students`, "success");
+          stream.getTracks().forEach((t) => t.stop());
+        };
+        rec.start(1000);
+        recRef.current = rec;
+        log("Recording", "Auto-recording of preloaded slides started", "success");
+      } catch {
+        log("Recording", "Could not auto-record slides (browser unsupported)", "error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [teacherPresent, autoMode, hasMaterial, pdfStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // ---------- Face verification ----------
   const ensureMatcher = useCallback(async () => {
