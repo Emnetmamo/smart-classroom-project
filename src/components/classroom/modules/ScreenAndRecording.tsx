@@ -373,10 +373,10 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
 
                 {!liveStream && autoMode && hasMaterial && materialUrl && (
-                  <div ref={pdfFrameRef} className="absolute inset-0 bg-white grid place-items-center p-3">
+                  <div ref={pdfFrameRef} className="absolute inset-0 bg-background grid place-items-center p-3">
                     {pdfStatus === "ready" && <canvas ref={pdfCanvasRef} className="max-w-full max-h-full shadow-lg" />}
                     {pdfStatus !== "ready" && (
-                      <div className="text-center max-w-md text-background">
+                      <div className="text-center max-w-md text-foreground">
                         {pdfStatus === "loading" ? <Loader2 className="w-14 h-14 mx-auto text-primary mb-4 animate-spin" /> : <FileText className="w-14 h-14 mx-auto text-primary mb-4" />}
                         <div className="text-xs uppercase tracking-widest opacity-70">{pdfStatus === "error" ? "Slide renderer needs reload" : "Loading preloaded material…"}</div>
                         <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
