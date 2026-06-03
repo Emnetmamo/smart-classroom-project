@@ -165,6 +165,8 @@ type Ctx = {
   recordings: Recording[];
   notifications: Notification[];
   logs: LogEntry[];
+  teacherAttendance: TeacherAttendance[];
+  studentAttendance: StudentAttendanceRecord[];
 
   // live state
   teacherPresent: boolean;
