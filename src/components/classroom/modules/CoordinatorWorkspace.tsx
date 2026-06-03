@@ -141,6 +141,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 const inputCls = "w-full px-2.5 py-1.5 rounded-md bg-input border border-border text-sm outline-none focus:border-primary";
 
+// Reusable portrait uploader → stores a data URL on the entity's `avatar`.
+function AvatarField({ value, onChange }: { value?: string; onChange: (dataUrl: string | undefined) => void }) {
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+  return (
+    <Field label="Photo (for face recognition)">
+      <div className="flex items-center gap-3">
+        {value
+          ? <img src={value} alt="portrait" className="w-12 h-12 rounded-full object-cover border border-border" />
+          : <div className="w-12 h-12 rounded-full bg-secondary border border-border grid place-items-center text-[10px] text-muted-foreground">none</div>}
+        <input type="file" accept="image/*" onChange={onFile} className="text-xs" />
+        {value && <button type="button" onClick={() => onChange(undefined)} className="text-xs px-2 py-1 rounded border border-border">Remove</button>}
+      </div>
+    </Field>
+  );
+}
+
+
 // -------- Instructors --------
 function InstructorsTab() {
   const { teachers, upsertTeacher, deleteTeacher, log } = useClassroom();
@@ -149,10 +172,11 @@ function InstructorsTab() {
   return (
     <Panel title="Instructors" action={<button onClick={() => setEdit(blank)} className="text-xs px-2.5 py-1 rounded bg-primary text-primary-foreground inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>}>
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Emp ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th></th></tr></thead>
+        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Photo</th><th>Emp ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th></th></tr></thead>
         <tbody>{teachers.map((t) => (
           <tr key={t.id} className="border-b border-border/40">
-            <td className="py-2 font-mono text-xs">{t.id}</td><td>{t.name}</td><td className="text-xs">{t.email}</td><td className="text-xs">{t.phone}</td><td className="text-xs">{t.department}</td>
+            <td className="py-2">{t.avatar ? <img src={t.avatar} alt={t.name} className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-secondary border border-border grid place-items-center text-[10px] text-muted-foreground">{t.name.split(" ").map((x) => x[0]).slice(0, 2).join("")}</div>}</td>
+            <td className="font-mono text-xs">{t.id}</td><td>{t.name}</td><td className="text-xs">{t.email}</td><td className="text-xs">{t.phone}</td><td className="text-xs">{t.department}</td>
             <td className="text-right space-x-1">
               <IconBtn onClick={() => setEdit(t)}><Pencil className="w-3 h-3" /></IconBtn>
               <IconBtn danger onClick={() => { deleteTeacher(t.id); log("Coordinator", `Deleted instructor ${t.name}`, "warn"); }}><Trash2 className="w-3 h-3" /></IconBtn>
@@ -170,6 +194,7 @@ function InstructorsTab() {
           <Field label="Email"><input className={inputCls} type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} required /></Field>
           <Field label="Phone"><input className={inputCls} value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
           <Field label="Department"><input className={inputCls} value={edit.department} onChange={(e) => setEdit({ ...edit, department: e.target.value })} /></Field>
+          <div className="sm:col-span-2"><AvatarField value={edit.avatar} onChange={(avatar) => setEdit({ ...edit, avatar })} /></div>
           <div className="sm:col-span-2 flex gap-2"><button className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm">Save</button><button type="button" onClick={() => setEdit(null)} className="px-3 py-1.5 rounded bg-secondary border border-border text-sm">Cancel</button></div>
         </form>
       )}
@@ -185,10 +210,11 @@ function StudentsTab() {
   return (
     <Panel title={`Students (${students.length})`} action={<button onClick={() => setEdit(blank)} className="text-xs px-2.5 py-1 rounded bg-primary text-primary-foreground inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>}>
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Student ID</th><th>Name</th><th>Email</th><th>RFID</th><th></th></tr></thead>
+        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Photo</th><th>Student ID</th><th>Name</th><th>Email</th><th>RFID</th><th></th></tr></thead>
         <tbody>{students.map((s) => (
           <tr key={s.id} className="border-b border-border/40">
-            <td className="py-2 font-mono text-xs">{s.id}</td><td>{s.name}</td><td className="text-xs">{s.email}</td><td className="text-xs font-mono">{s.rfid}</td>
+            <td className="py-2">{s.avatar ? <img src={s.avatar} alt={s.name} className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-secondary border border-border grid place-items-center text-[10px] text-muted-foreground">{s.name.split(" ").map((x) => x[0]).slice(0, 2).join("")}</div>}</td>
+            <td className="font-mono text-xs">{s.id}</td><td>{s.name}</td><td className="text-xs">{s.email}</td><td className="text-xs font-mono">{s.rfid}</td>
             <td className="text-right space-x-1">
               <IconBtn onClick={() => setEdit(s)}><Pencil className="w-3 h-3" /></IconBtn>
               <IconBtn danger onClick={() => { deleteStudent(s.id); log("Coordinator", `Deleted student ${s.name}`, "warn"); }}><Trash2 className="w-3 h-3" /></IconBtn>
@@ -204,6 +230,7 @@ function StudentsTab() {
           <Field label="Full name"><input className={inputCls} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required /></Field>
           <Field label="Email"><input className={inputCls} type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} required /></Field>
           <Field label="RFID tag"><input className={inputCls} value={edit.rfid} onChange={(e) => setEdit({ ...edit, rfid: e.target.value })} required /></Field>
+          <div className="sm:col-span-2"><AvatarField value={edit.avatar} onChange={(avatar) => setEdit({ ...edit, avatar })} /></div>
           <div className="sm:col-span-2 flex gap-2"><button className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm">Save</button><button type="button" onClick={() => setEdit(null)} className="px-3 py-1.5 rounded bg-secondary border border-border text-sm">Cancel</button></div>
         </form>
       )}

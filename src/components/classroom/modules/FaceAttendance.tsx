@@ -9,7 +9,7 @@ const MATCH_THRESHOLD = 0.5; // max descriptor distance to accept a match
 const STABLE_HITS = 2; // consecutive frames before marking attendance
 
 export function FaceAttendance() {
-  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, schedule, simNow, setSimNow, log } = useClassroom();
+  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, schedule, scheduleMode, setScheduleMode, simNow, setSimNow, log } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const matcherRef = useRef<FaceMatcher | null>(null);
   const loopRef = useRef<number | null>(null);
@@ -189,7 +189,23 @@ export function FaceAttendance() {
         </Panel>
 
         <div className="space-y-6">
+          <Panel title="Schedule mode" subtitle="How the system decides which course takes the floor">
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setScheduleMode("demo")}
+                className={`p-2.5 rounded-md border text-sm text-left ${scheduleMode === "demo" ? "border-primary bg-primary/10" : "border-border bg-secondary/40 hover:bg-secondary"}`}>
+                <div className="font-medium">Demo</div>
+                <div className="text-[11px] text-muted-foreground">Idle until a teacher is verified, then their course starts.</div>
+              </button>
+              <button onClick={() => setScheduleMode("schedule")}
+                className={`p-2.5 rounded-md border text-sm text-left ${scheduleMode === "schedule" ? "border-primary bg-primary/10" : "border-border bg-secondary/40 hover:bg-secondary"}`}>
+                <div className="font-medium">Schedule</div>
+                <div className="text-[11px] text-muted-foreground">Clock-driven; warns if the wrong teacher is at the slot.</div>
+              </button>
+            </div>
+          </Panel>
+
           <Panel title="Lateness simulator" subtitle="Manually shift the clock relative to session start">
+
             <div className="text-xs text-muted-foreground mb-3">
               Active session: <strong>{schedule.course}</strong> · starts {schedule.start}
               <div className="mt-1">Sim clock: <strong>{simNow.toLocaleTimeString()}</strong></div>

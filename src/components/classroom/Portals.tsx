@@ -24,6 +24,12 @@ export function InstructorPortal({ teacherId, onLogout }: { teacherId: string; o
           <div className="text-sm font-medium">Instructor Portal</div>
           <div className="text-xs text-muted-foreground">{me?.name} · {me?.department}</div>
         </div>
+        <div className="relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          {inbox.filter((n) => !n.read).length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[10px] grid place-items-center">{inbox.filter((n) => !n.read).length}</span>
+          )}
+        </div>
         <button onClick={onLogout} className="text-xs px-2.5 py-1.5 rounded-md border border-border inline-flex items-center gap-1.5"><LogOut className="w-3.5 h-3.5" /> Logout</button>
       </header>
 
@@ -147,6 +153,12 @@ export function StudentPortal({ studentId, onLogout }: { studentId: string; onLo
           <div className="text-sm font-medium">Student Portal</div>
           <div className="text-xs text-muted-foreground">{me?.name} · {me?.id}</div>
         </div>
+        <div className="relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          {inbox.filter((n) => !n.read).length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[10px] grid place-items-center">{inbox.filter((n) => !n.read).length}</span>
+          )}
+        </div>
         <button onClick={onLogout} className="text-xs px-2.5 py-1.5 rounded-md border border-border inline-flex items-center gap-1.5"><LogOut className="w-3.5 h-3.5" /> Logout</button>
       </header>
 
@@ -194,7 +206,17 @@ export function StudentPortal({ studentId, onLogout }: { studentId: string; onLo
                     <div>
                       <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Recordings</div>
                       {recs.length === 0 ? <p className="text-xs text-muted-foreground">No recordings yet.</p> :
-                        <ul className="space-y-1.5 text-sm">{recs.map((r) => <li key={r.id} className="p-2 rounded border border-border bg-secondary/30 flex justify-between"><span>🎥 {r.title}</span><span className="text-[10px] text-muted-foreground">{r.date} · {Math.round(r.durationSec/60)}m</span></li>)}</ul>}
+                        <ul className="space-y-1.5 text-sm">{recs.map((r) => (
+                          <li key={r.id} className="p-2 rounded border border-border bg-secondary/30 space-y-1.5">
+                            <div className="flex justify-between"><span>🎥 {r.title}</span><span className="text-[10px] text-muted-foreground">{r.date} · {Math.round(r.durationSec/60)}m</span></div>
+                            {r.url ? (
+                              <div className="space-y-1.5">
+                                <video controls src={r.url} className="w-full rounded border border-border max-h-48" />
+                                <a href={r.url} download={`${r.title.replace(/\s/g, "_")}.webm`} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-primary text-primary-foreground">⬇ Download</a>
+                              </div>
+                            ) : <div className="text-[10px] text-muted-foreground">Processing — file will be available after the lecture is recorded.</div>}
+                          </li>
+                        ))}</ul>}
                     </div>
                   </div>
                 </Panel>
@@ -229,7 +251,8 @@ function ComposeNotification({ fromRole, fromName, toRoles, students }: {
   toRoles: ("coordinator" | "instructor" | "student")[];
   students?: { id: string; name: string }[];
 }) {
-  const { sendNotification, teachers } = useClassroom();
+  const { sendNotification, teachers, notifications } = useClassroom();
+  const sentMessages = notifications.filter((n) => n.fromRole === fromRole && n.fromName === fromName);
   const [toRole, setToRole] = useState<"coordinator" | "instructor" | "student">(toRoles[0]);
   const [toId, setToId] = useState<string>("");
   const [subject, setSubject] = useState("");
@@ -265,6 +288,18 @@ function ComposeNotification({ fromRole, fromName, toRoles, students }: {
       </div>
       <button onClick={send} disabled={!subject || !body} className="mt-3 px-3 py-2 rounded bg-primary text-primary-foreground text-sm inline-flex items-center gap-2 disabled:opacity-50"><Send className="w-4 h-4" /> Send</button>
       {sent && <span className="ml-3 text-xs text-[color:var(--success)]">Sent ✓</span>}
+
+      <div className="mt-6">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Sent messages ({sentMessages.length})</div>
+        {sentMessages.length === 0 ? <p className="text-xs text-muted-foreground">You haven't sent any messages yet.</p> :
+          <div className="space-y-2">{sentMessages.map((n) => (
+            <div key={n.id} className="p-2.5 rounded-md border border-border bg-secondary/20">
+              <div className="flex justify-between text-[11px] text-muted-foreground"><span>To {n.toRole}</span><span>{n.time}</span></div>
+              <div className="text-sm font-medium">{n.subject}</div>
+              <div className="text-xs text-muted-foreground whitespace-pre-wrap">{n.body}</div>
+            </div>
+          ))}</div>}
+      </div>
     </Panel>
   );
 }

@@ -3,6 +3,11 @@ import studentBetty from "@/assets/student-betty.jpg";
 import studentEmnet from "@/assets/student-emnet.jpg";
 import teacherDagmawi from "@/assets/teacher-dagmawi.jpg";
 import teacherAyalew from "@/assets/teacher-ayalew.jpg";
+import teacherMulugeta from "@/assets/teacher-mulugeta.jpg";
+import smartComputingSlides from "@/assets/smart-computing-slides.pdf.asset.json";
+import computerNetworksSlides from "@/assets/computer-networks-slides.pdf.asset.json";
+
+export type ScheduleMode = "demo" | "schedule";
 
 export type Lateness = "on-time" | "warning" | "late";
 
@@ -57,7 +62,7 @@ export type SessionRow = {
   start: string;
   end: string;
   kind: "regular" | "makeup";
-  material?: { title: string; type: "slides" | "doc" | "video"; preloaded: boolean };
+  material?: { title: string; type: "slides" | "doc" | "video"; preloaded: boolean; url?: string };
 };
 
 export type Recording = {
@@ -67,6 +72,7 @@ export type Recording = {
   title: string;
   date: string;
   durationSec: number;
+  url?: string; // object URL or download link when a real recording exists
 };
 
 export type Notification = {
@@ -138,6 +144,8 @@ type Ctx = {
   sensors: Sensors;
   devices: Devices;
   schedule: CurrentSchedule;
+  scheduleMode: ScheduleMode;
+  setScheduleMode: (m: ScheduleMode) => void;
 
   // sim clock
   simNow: Date;
@@ -200,11 +208,10 @@ const initialStudents: Student[] = [
 ];
 
 const initialTeachers: Teacher[] = [
+  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
   { id: "T-AYB", username: "ayalew", name: "Dr. Ayalew B.", email: "ayalew.b@aau.edu.et", phone: "+251 911 000001", department: "Computer Science", avatar: teacherAyalew },
   { id: "T-DGM", username: "dagmawi", name: "Dr. Dagmawi L.", email: "dagmawi.l@aau.edu.et", phone: "+251 911 000002", department: "Computer Science", avatar: teacherDagmawi },
-  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science" },
-  { id: "T-DID", username: "dida", name: "Dr. Dida M.", email: "dida.m@aau.edu.et", phone: "+251 911 000004", department: "Computer Science" },
-  { id: "T-YRG", username: "yaregal", name: "Dr. Yaregal A.", email: "yaregal.a@aau.edu.et", phone: "+251 911 000005", department: "Computer Science" },
+  { id: "T-SOL", username: "solomon", name: "Dr. Solomon T.", email: "solomon.t@aau.edu.et", phone: "+251 911 000006", department: "Computer Science" },
 ];
 
 const initialClassrooms: Classroom[] = [
@@ -215,28 +222,30 @@ const initialClassrooms: Classroom[] = [
 
 const allStudentIds = initialStudents.map((s) => s.id);
 
+// Preloaded lecture decks shared by the verified instructor.
+const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
+const NETWORKS_MATERIAL = { title: "Overview of Computer Networks", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
+
 const initialCourses: Course[] = [
-  { id: "C-6104", code: "CoSc 6104", name: "Advanced Algorithms", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6314", code: "CoSc 6314", name: "Distributed Systems", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6252", code: "CoSc 6252", name: "AI & NLP", instructorId: "T-YRG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6316", code: "CoSc 6316", name: "Information Retrieval", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6302", code: "CoSc 6302", name: "Machine Learning", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-6102", code: "CoSc 6102", name: "Algorithms", instructorId: "T-DID", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-ACN", code: "CoSc 6201", name: "Advanced Computer Networks", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-EMB", code: "CoSc 6202", name: "Embedded Systems", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-SMC", code: "CoSc 6203", name: "Smart Computing", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-CYB", code: "CoSc 6204", name: "Cyber Security", instructorId: "T-SOL", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
 ];
 
 const initialSessions: SessionRow[] = [
-  { id: "S1",  courseId: "C-6104", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { title: "CoSc 6104 · Algorithms W1", type: "slides", preloaded: true } },
-  { id: "S2",  courseId: "C-6314", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6314 · Distributed Systems Intro", type: "slides", preloaded: true } },
-  { id: "S3",  courseId: "C-6252", classroomId: "R-A319", instructorId: "T-YRG", day: 1, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S4",  courseId: "C-6316", classroomId: "R-A319", instructorId: "T-AYB", day: 2, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S5",  courseId: "C-6302", classroomId: "R-A319", instructorId: "T-MLG", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6302 · ML Notes", type: "doc", preloaded: true } },
-  { id: "S6",  courseId: "C-6104", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S7",  courseId: "C-6102", classroomId: "R-A319", instructorId: "T-DID", day: 3, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6102 · Algorithms Lecture", type: "slides", preloaded: true } },
-  { id: "S8",  courseId: "C-6252", classroomId: "R-A319", instructorId: "T-YRG", day: 3, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S9",  courseId: "C-6316", classroomId: "R-A319", instructorId: "T-AYB", day: 4, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S10", courseId: "C-6302", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular" },
-  { id: "S11", courseId: "C-6314", classroomId: "R-A319", instructorId: "T-DGM", day: 5, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S12", courseId: "C-6102", classroomId: "R-A319", instructorId: "T-DID", day: 5, start: "10:30", end: "11:30", kind: "regular", material: { title: "CoSc 6102 · Algorithms Lecture", type: "slides", preloaded: true } },
+  { id: "S1",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S2",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S3",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "13:30", end: "14:30", kind: "regular" },
+  { id: "S4",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 2, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S5",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S6",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 3, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S7",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "10:30", end: "11:30", kind: "regular" },
+  { id: "S8",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 3, start: "13:30", end: "14:30", kind: "regular" },
+  { id: "S9",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S10", courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S11", courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 5, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S12", courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 5, start: "10:30", end: "11:30", kind: "regular" },
 ];
 
 // Anchor sim clock to a Monday 08:35 so demo defaults to an active session.
@@ -276,17 +285,14 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [classrooms, setClassrooms] = useState<Classroom[]>(initialClassrooms);
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [sessions, setSessions] = useState<SessionRow[]>(initialSessions);
-  const [recordings, setRecordings] = useState<Recording[]>([
-    { id: "REC1", sessionId: "S1", courseId: "C-6104", title: "Advanced Algorithms · Lecture 1", date: "2026-05-25", durationSec: 3120 },
-    { id: "REC2", sessionId: "S2", courseId: "C-6314", title: "Distributed Systems · Intro", date: "2026-05-25", durationSec: 3000 },
-    { id: "REC3", sessionId: "S5", courseId: "C-6302", title: "Machine Learning · Lecture 2", date: "2026-05-26", durationSec: 3300 },
-  ]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [teacherPresent, setTeacherPresent] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [simNow, setSimNow] = useState<Date>(buildInitialSimNow);
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("demo");
   const advanceSim = (m: number) => setSimNow((d) => new Date(d.getTime() + m * 60000));
 
   const [sensors, setSensors] = useState<Sensors>({
@@ -301,6 +307,30 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [overrideSchedule, setOverrideSchedule] = useState<Partial<CurrentSchedule>>({});
 
   const schedule: CurrentSchedule = useMemo(() => {
+    // DEMO mode: idle until a teacher is verified; then the verified teacher's
+    // course takes the floor (with their preloaded material if available).
+    if (scheduleMode === "demo") {
+      if (!currentTeacherId) {
+        return { course: "Idle — waiting for instructor", instructor: "—", start: "--:--", end: "--:--", room: "A319", active: false, sessionId: null, courseId: null, ...overrideSchedule };
+      }
+      const course = courses.find((c) => c.instructorId === currentTeacherId);
+      const sess = sessions.find((s) => s.instructorId === currentTeacherId && s.material) ?? sessions.find((s) => s.instructorId === currentTeacherId);
+      const teacher = teachers.find((t) => t.id === currentTeacherId);
+      const base: CurrentSchedule = {
+        course: course?.code ? `${course.code} · ${course.name}` : course?.name ?? "Session",
+        instructor: teacher?.name ?? "—",
+        start: sess?.start ?? simNow.toTimeString().slice(0, 5),
+        end: sess?.end ?? "--:--",
+        room: "A319",
+        active: true,
+        sessionId: sess?.id ?? null,
+        courseId: course?.id ?? null,
+        material: sess?.material,
+      };
+      return { ...base, ...overrideSchedule };
+    }
+
+    // SCHEDULE mode: driven by the (simulated) clock.
     const { active, next } = findActiveOrNext(sessions, "A319", classrooms, simNow);
     const s = active ?? next;
     if (!s) {
@@ -321,7 +351,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       material: s.material,
     };
     return { ...base, ...overrideSchedule };
-  }, [sessions, courses, teachers, classrooms, simNow, overrideSchedule]);
+  }, [scheduleMode, currentTeacherId, sessions, courses, teachers, classrooms, simNow, overrideSchedule]);
 
   const log: Ctx["log"] = (module, message, level = "info") => {
     setLogs((prev) => [{ id: crypto.randomUUID(), time: new Date().toLocaleTimeString(), module, message, level }, ...prev].slice(0, 300));
@@ -353,19 +383,54 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const checkInTeacher: Ctx["checkInTeacher"] = (teacherId) => {
     const t = teachers.find((x) => x.id === teacherId);
     if (!t) return;
+
+    // SCHEDULE mode guard: only the instructor scheduled for the active slot
+    // may take the floor. Anyone else gets notified that the slot is taken.
+    if (scheduleMode === "schedule") {
+      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      if (active && active.instructorId !== teacherId) {
+        const scheduledTeacher = teachers.find((x) => x.id === active.instructorId);
+        const c = courses.find((x) => x.id === active.courseId);
+        log("Schedule", `${t.name} recognized, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? "this slot"} now`, "warn");
+        setNotifications((prev) => [{
+          id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Smart Classroom",
+          toRole: "instructor", toId: teacherId,
+          subject: "Slot already scheduled",
+          body: `You were recognized in A319, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
+        }, ...prev]);
+        // Still record presence (face was seen) so lights/attendance respond, but do not start the session.
+        setTeacherPresent(true);
+        setCurrentTeacher(t.name);
+        setCurrentTeacherId(t.id);
+        return;
+      }
+      if (!active) {
+        log("Schedule", `${t.name} recognized, but no session is scheduled right now`, "info");
+      }
+    }
+
     setTeacherPresent(true);
     setCurrentTeacher(t.name);
     setCurrentTeacherId(t.id);
     log("Face Recognition", `Teacher verified: ${t.name}`, "success");
-    const matches = schedule.sessionId && schedule.instructor === t.name && schedule.active;
-    if (matches) {
+
+    // Decide whether to auto-start the lecture.
+    let startSession = true;
+    if (scheduleMode === "schedule") {
+      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      startSession = !!active && active.instructorId === teacherId;
+    }
+
+    if (startSession) {
+      const course = courses.find((c) => c.instructorId === teacherId);
+      const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
       setDevices((d) => ({ ...d, sharing: true, recording: true }));
-      log("Smart Screen", schedule.material?.preloaded
-        ? `Auto-loaded preloaded material: ${schedule.material.title}`
-        : `Auto-share waiting for instructor's screen — recording armed`, "success");
-      log("Recording", `Lecture recording auto-started for ${schedule.course}`, "success");
+      log("Smart Screen", sess?.material?.preloaded
+        ? `Auto-loaded preloaded material: ${sess.material.title}`
+        : `No preloaded material — share your screen to begin (recording armed)`, "success");
+      log("Recording", `Lecture recording (screen + audio) auto-started for ${course?.name ?? "session"}`, "success");
     } else {
-      log("Schedule", `No active session matches ${t.name} right now — manual share available`, "info");
+      log("Schedule", `Recognized ${t.name} — manual share available`, "info");
     }
   };
 
@@ -495,7 +560,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   return (
     <ClassroomCtx.Provider value={{
       students, teachers, classrooms, courses, sessions, recordings, notifications, logs,
-      teacherPresent, currentTeacher, sensors, devices, schedule,
+      teacherPresent, currentTeacher, sensors, devices, schedule, scheduleMode, setScheduleMode,
       simNow, setSimNow, advanceSim,
       setSensor, setDevice,
       checkIn, multiFaceDetect, checkInTeacher, checkOutTeacher, checkOutAll, setAttention,
