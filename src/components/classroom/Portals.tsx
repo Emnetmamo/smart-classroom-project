@@ -153,6 +153,12 @@ export function StudentPortal({ studentId, onLogout }: { studentId: string; onLo
           <div className="text-sm font-medium">Student Portal</div>
           <div className="text-xs text-muted-foreground">{me?.name} · {me?.id}</div>
         </div>
+        <div className="relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          {inbox.filter((n) => !n.read).length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-white text-[10px] grid place-items-center">{inbox.filter((n) => !n.read).length}</span>
+          )}
+        </div>
         <button onClick={onLogout} className="text-xs px-2.5 py-1.5 rounded-md border border-border inline-flex items-center gap-1.5"><LogOut className="w-3.5 h-3.5" /> Logout</button>
       </header>
 
