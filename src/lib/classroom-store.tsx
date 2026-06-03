@@ -75,6 +75,34 @@ export type Recording = {
   url?: string; // object URL or download link when a real recording exists
 };
 
+export type TeacherAttendance = {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  courseId: string | null;
+  courseName: string;
+  sessionId: string | null;
+  date: string;          // YYYY-MM-DD
+  checkInTime: string;   // HH:MM:SS
+  checkOutTime?: string;
+  lateness: Lateness;
+  scheduleMode: ScheduleMode;
+};
+
+export type StudentAttendanceRecord = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  courseId: string | null;
+  courseName: string;
+  sessionId: string | null;
+  date: string;
+  checkInTime?: string;
+  present: boolean;
+  lateness?: Lateness;
+  method?: "face" | "rfid";
+};
+
 export type Notification = {
   id: string;
   time: string;
