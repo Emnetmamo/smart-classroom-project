@@ -48,7 +48,7 @@ export function Login({ role, onSuccess, onBack }: {
           </button>
           <div className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">
             {role === "instructor"
-              ? <>Try <code>ayalew</code>, <code>dagmawi</code>, <code>mulugeta</code>, <code>dida</code>, <code>yaregal</code> · password <code>Teacher@1234</code></>
+              ? <>Try <code>ayalew</code>, <code>dagmawi</code>, <code>mulugeta</code>, <code>solomon</code> · password <code>Teacher@1234</code></>
               : <>Use your first name (lowercase) as username · password is <code>&lt;Firstname&gt;@1234</code> e.g. <code>Abera@1234</code></>}
           </div>
         </form>

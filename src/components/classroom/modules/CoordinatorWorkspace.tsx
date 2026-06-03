@@ -358,16 +358,23 @@ function overlap(a1: string, a2: string, b1: string, b2: string) {
 
 // -------- Schedule view --------
 function ScheduleViewTab() {
-  const { sessions, courses, classrooms, teachers, deleteSession, log } = useClassroom();
+  const { sessions, courses, classrooms, teachers, upsertSession, deleteSession, log } = useClassroom();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const sorted = [...sessions].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
   return (
-    <Panel title="Schedule">
+    <Panel title="Schedule" subtitle="Edit time/day/room/instructor — conflicts in the same room are blocked.">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Day</th><th>Time</th><th>Course</th><th>Instructor</th><th>Room</th><th>Type</th><th></th></tr></thead>
+        <thead><tr className="text-left text-xs text-muted-foreground border-b border-border"><th className="py-2">Day</th><th>Time</th><th>Course</th><th>Instructor</th><th>Room</th><th>Type</th><th className="text-right">Actions</th></tr></thead>
         <tbody>{sorted.map((s) => {
           const c = courses.find((x) => x.id === s.courseId);
           const t = teachers.find((x) => x.id === s.instructorId);
           const r = classrooms.find((x) => x.id === s.classroomId);
+          if (editingId === s.id) {
+            return <EditRow key={s.id} row={s} sessions={sessions} courses={courses} classrooms={classrooms} teachers={teachers}
+              onCancel={() => setEditingId(null)}
+              onSave={(next) => { upsertSession(next); log("Coordinator", `Edited session ${next.id} → ${DAY_LABELS[next.day]} ${next.start}–${next.end}`, "success"); setEditingId(null); }} />;
+          }
           return (
             <tr key={s.id} className="border-b border-border/40">
               <td className="py-2">{DAY_LABELS[s.day]}</td>
@@ -376,12 +383,39 @@ function ScheduleViewTab() {
               <td className="text-xs">{t?.name}</td>
               <td className="text-xs">{r?.name}</td>
               <td className="text-xs">{s.kind === "makeup" ? <span className="text-[color:var(--warning)]">Makeup</span> : "Regular"}</td>
-              <td className="text-right"><IconBtn danger onClick={() => { deleteSession(s.id); log("Coordinator", `Deleted session ${s.id}`, "warn"); }}><Trash2 className="w-3 h-3" /></IconBtn></td>
+              <td className="text-right whitespace-nowrap">
+                <IconBtn onClick={() => setEditingId(s.id)}><Pencil className="w-3 h-3" /></IconBtn>
+                <IconBtn danger onClick={() => { if (confirm(`Delete ${c?.code} on ${DAY_LABELS[s.day]} ${s.start}?`)) { deleteSession(s.id); log("Coordinator", `Deleted session ${s.id}`, "warn"); } }}><Trash2 className="w-3 h-3" /></IconBtn>
+              </td>
             </tr>
           );
         })}</tbody>
       </table>
+      </div>
     </Panel>
+  );
+}
+
+function EditRow({ row, sessions, courses, classrooms, teachers, onCancel, onSave }: {
+  row: SessionRow; sessions: SessionRow[]; courses: Course[]; classrooms: Classroom[]; teachers: Teacher[];
+  onCancel: () => void; onSave: (s: SessionRow) => void;
+}) {
+  const [f, setF] = useState<SessionRow>(row);
+  const conflict = sessions.find((s) => s.id !== f.id && s.day === f.day && s.classroomId === f.classroomId && overlap(s.start, s.end, f.start, f.end));
+  return (
+    <tr className="border-b border-border/40 bg-muted/30">
+      <td className="py-2"><select className={inputCls} value={f.day} onChange={(e) => setF({ ...f, day: +e.target.value })}>{[1,2,3,4,5,6].map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}</select></td>
+      <td><div className="flex gap-1"><input className={inputCls} type="time" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /><input className={inputCls} type="time" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} /></div></td>
+      <td><select className={inputCls} value={f.courseId} onChange={(e) => { const c = courses.find(x => x.id === e.target.value); setF({ ...f, courseId: e.target.value, instructorId: c?.instructorId ?? f.instructorId }); }}>{courses.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}</select></td>
+      <td><select className={inputCls} value={f.instructorId} onChange={(e) => setF({ ...f, instructorId: e.target.value })}>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
+      <td><select className={inputCls} value={f.classroomId} onChange={(e) => setF({ ...f, classroomId: e.target.value })}>{classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
+      <td><select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as "regular" | "makeup" })}><option value="regular">Regular</option><option value="makeup">Makeup</option></select></td>
+      <td className="text-right whitespace-nowrap">
+        <button disabled={!!conflict} onClick={() => onSave(f)} className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs disabled:opacity-50" title={conflict ? "Room conflict with another booking" : "Save"}>Save</button>
+        <button onClick={onCancel} className="ml-1 px-2 py-1 rounded bg-secondary border border-border text-xs">Cancel</button>
+        {conflict && <div className="text-[10px] text-destructive mt-1">Room conflict</div>}
+      </td>
+    </tr>
   );
 }
 

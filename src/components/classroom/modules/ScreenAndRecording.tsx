@@ -127,11 +127,11 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
           <div className="aspect-video bg-black rounded-lg overflow-hidden border border-border relative">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
 
-            {autoMode && hasMaterial && materialUrl && (
+            {!liveStream && autoMode && hasMaterial && materialUrl && (
               <iframe title={schedule.material!.title} src={materialUrl} className="absolute inset-0 w-full h-full bg-white" />
             )}
 
-            {autoMode && hasMaterial && !materialUrl && schedule.material && (
+            {!liveStream && autoMode && hasMaterial && !materialUrl && schedule.material && (
               <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
                 <div className="text-center max-w-md">
                   <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
@@ -142,7 +142,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
               </div>
             )}
 
-            {autoMode && !hasMaterial && (
+            {!liveStream && autoMode && !hasMaterial && (
               <div className="absolute inset-0 grid place-items-center bg-background/80 p-6">
                 <div className="text-center max-w-sm">
                   <AlertCircle className="w-10 h-10 mx-auto text-[color:var(--warning)] mb-2" />
@@ -176,10 +176,10 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {/* Without preloaded material the instructor can share their screen. */}
-            {!liveStream && teacherPresent && !hasMaterial && (
+            {/* Manual share is always available to the verified instructor — even when a preloaded deck is showing (override). */}
+            {!liveStream && teacherPresent && (
               <button onClick={startManualShare} className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
-                <MonitorPlay className="w-4 h-4" /> Share my screen
+                <MonitorPlay className="w-4 h-4" /> {hasMaterial ? "Override · share my screen" : "Share my screen"}
               </button>
             )}
             {devices.sharing && (
