@@ -285,17 +285,14 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [classrooms, setClassrooms] = useState<Classroom[]>(initialClassrooms);
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [sessions, setSessions] = useState<SessionRow[]>(initialSessions);
-  const [recordings, setRecordings] = useState<Recording[]>([
-    { id: "REC1", sessionId: "S1", courseId: "C-6104", title: "Advanced Algorithms · Lecture 1", date: "2026-05-25", durationSec: 3120 },
-    { id: "REC2", sessionId: "S2", courseId: "C-6314", title: "Distributed Systems · Intro", date: "2026-05-25", durationSec: 3000 },
-    { id: "REC3", sessionId: "S5", courseId: "C-6302", title: "Machine Learning · Lecture 2", date: "2026-05-26", durationSec: 3300 },
-  ]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [teacherPresent, setTeacherPresent] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [simNow, setSimNow] = useState<Date>(buildInitialSimNow);
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("demo");
   const advanceSim = (m: number) => setSimNow((d) => new Date(d.getTime() + m * 60000));
 
   const [sensors, setSensors] = useState<Sensors>({
