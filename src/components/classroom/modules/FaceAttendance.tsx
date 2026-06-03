@@ -220,7 +220,7 @@ export function FaceAttendance() {
               <div className="mb-2 text-[11px] text-[color:var(--warning)]">⚠ No face found in portrait: {encodeFailed.join(", ")}</div>
             )}
             <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
-              {[...knownTeachers, ...knownStudents].map((p) => {
+              {knownStudents.map((p) => {
                 const student = students.find((s) => s.id === p.id);
                 const present = student?.present ?? (teacherPresent && currentTeacher === p.name);
                 return (
