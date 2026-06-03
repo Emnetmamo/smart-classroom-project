@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
-import { MonitorPlay, Video, Square, Download, FileText, AlertCircle, ExternalLink } from "lucide-react";
+import { MonitorPlay, Video, Square, Download, FileText, AlertCircle } from "lucide-react";
 
 // Smart Screen Sharing + Lecture Recording.
 // Auto-driven by schedule + teacher face verification.
@@ -176,21 +176,16 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {!liveStream && teacherPresent && (
+            {/* Without preloaded material the instructor can share their screen. */}
+            {!liveStream && teacherPresent && !hasMaterial && (
               <button onClick={startManualShare} className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
-                <MonitorPlay className="w-4 h-4" /> {hasMaterial ? "Override · share my screen" : "Share my screen"}
+                <MonitorPlay className="w-4 h-4" /> Share my screen
               </button>
-            )}
-            {hasMaterial && materialUrl && (
-              <a href={materialUrl} target="_blank" rel="noopener noreferrer"
-                className="px-3 py-2 rounded-md bg-secondary border border-border text-sm inline-flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" /> Open material
-              </a>
             )}
             {devices.sharing && (
               <button onClick={teacherPresent ? checkOutTeacher : stopMediaTracks}
                 className="px-3 py-2 rounded-md bg-secondary border border-border text-sm inline-flex items-center gap-2">
-                <Square className="w-4 h-4" /> Stop session
+                <Square className="w-4 h-4" /> End session
               </button>
             )}
             {recordedUrl && (

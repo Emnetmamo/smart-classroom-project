@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import studentBetty from "@/assets/student-betty.jpg";
 import studentEmnet from "@/assets/student-emnet.jpg";
 import teacherDagmawi from "@/assets/teacher-dagmawi.jpg";
@@ -208,56 +208,60 @@ const initialStudents: Student[] = [
 ];
 
 const initialTeachers: Teacher[] = [
-  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
   { id: "T-AYB", username: "ayalew", name: "Dr. Ayalew B.", email: "ayalew.b@aau.edu.et", phone: "+251 911 000001", department: "Computer Science", avatar: teacherAyalew },
   { id: "T-DGM", username: "dagmawi", name: "Dr. Dagmawi L.", email: "dagmawi.l@aau.edu.et", phone: "+251 911 000002", department: "Computer Science", avatar: teacherDagmawi },
-  { id: "T-SOL", username: "solomon", name: "Dr. Solomon T.", email: "solomon.t@aau.edu.et", phone: "+251 911 000006", department: "Computer Science" },
+  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
+  { id: "T-YRG", username: "yaregal", name: "Dr. Yaregal A.", email: "yaregal.a@aau.edu.et", phone: "+251 911 000004", department: "Computer Science" },
+  { id: "T-DDA", username: "dida", name: "Dr. Dida M.", email: "dida.m@aau.edu.et", phone: "+251 911 000005", department: "Computer Science" },
 ];
 
 const initialClassrooms: Classroom[] = [
-  { id: "R-A319", name: "A319", capacity: 30, building: "Block A", floor: "3rd", equipment: ["Projector", "Smart Board", "AC", "Mics"] },
-  { id: "R-A320", name: "A320", capacity: 25, building: "Block A", floor: "3rd", equipment: ["Projector", "Whiteboard"] },
-  { id: "R-B210", name: "B210", capacity: 40, building: "Block B", floor: "2nd", equipment: ["Projector", "AC", "Smart Board"] },
+  { id: "R-A304", name: "A304", capacity: 30, building: "New Science Building", floor: "CS Floor", equipment: ["Projector", "Smart Board", "AC", "Mics"] },
+  { id: "R-322",  name: "322",  capacity: 30, building: "New Science Building", floor: "CS Floor", equipment: ["Projector", "Smart Board"] },
 ];
 
 const allStudentIds = initialStudents.map((s) => s.id);
 
 // Preloaded lecture decks shared by the verified instructor.
-const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
-const NETWORKS_MATERIAL = { title: "Overview of Computer Networks", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
+const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026 (Joint Network + Software stream)", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
+const NETWORKS_MATERIAL = { title: "Computer Networks — Addressing", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
 
+// Course codes follow stream convention:  61xx = Data Stream · 62xx = Software Stream · 63xx = Network Stream.
+// Smart Computing (6316) is taken jointly by the Network and Software streams.
 const initialCourses: Course[] = [
-  { id: "C-ACN", code: "CoSc 6201", name: "Advanced Computer Networks", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-EMB", code: "CoSc 6202", name: "Embedded Systems", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-SMC", code: "CoSc 6203", name: "Smart Computing", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-CYB", code: "CoSc 6204", name: "Cyber Security", instructorId: "T-SOL", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6104", code: "CoSc 6104", name: "Data Mining (Data Stream)",                     instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6102", code: "CoSc 6102", name: "Big Data Analytics (Data Stream)",              instructorId: "T-DDA", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6252", code: "CoSc 6252", name: "Software Architecture (Software Stream)",       instructorId: "T-YRG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6302", code: "CoSc 6302", name: "Advanced Computer Networks (Network Stream)",   instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6314", code: "CoSc 6314", name: "Network Security (Network Stream)",             instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6316", code: "CoSc 6316", name: "Smart Computing (Network + Software · joint)",  instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
 ];
 
+// Weekly schedule for room A304 — mirrors the printed timetable. 1=Mon … 5=Fri.
 const initialSessions: SessionRow[] = [
-  { id: "S1",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S2",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S3",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S4",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 2, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S5",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S6",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 3, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S7",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "10:30", end: "11:30", kind: "regular" },
-  { id: "S8",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 3, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S9",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S10", courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S11", courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 5, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S12", courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 5, start: "10:30", end: "11:30", kind: "regular" },
+  // Monday
+  { id: "S-MON-0830", courseId: "C-6104", classroomId: "R-A304", instructorId: "T-AYB", day: 1, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S-MON-1030", courseId: "C-6314", classroomId: "R-A304", instructorId: "T-DGM", day: 1, start: "10:30", end: "12:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S-MON-1330", courseId: "C-6252", classroomId: "R-A304", instructorId: "T-YRG", day: 1, start: "13:30", end: "14:30", kind: "regular" },
+  // Tuesday
+  { id: "S-TUE-0830", courseId: "C-6316", classroomId: "R-A304", instructorId: "T-AYB", day: 2, start: "08:30", end: "10:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S-TUE-1030", courseId: "C-6302", classroomId: "R-A304", instructorId: "T-MLG", day: 2, start: "10:30", end: "12:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  // Wednesday
+  { id: "S-WED-0830", courseId: "C-6104", classroomId: "R-A304", instructorId: "T-AYB", day: 3, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S-WED-1030", courseId: "C-6102", classroomId: "R-A304", instructorId: "T-DDA", day: 3, start: "10:30", end: "12:30", kind: "regular" },
+  { id: "S-WED-1330", courseId: "C-6252", classroomId: "R-A304", instructorId: "T-YRG", day: 3, start: "13:30", end: "14:30", kind: "regular" },
+  // Thursday
+  { id: "S-THU-0830", courseId: "C-6316", classroomId: "R-A304", instructorId: "T-AYB", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S-THU-1030", courseId: "C-6302", classroomId: "R-A304", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  // Friday
+  { id: "S-FRI-0830", courseId: "C-6314", classroomId: "R-A304", instructorId: "T-DGM", day: 5, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S-FRI-1030", courseId: "C-6102", classroomId: "R-A304", instructorId: "T-DDA", day: 5, start: "10:30", end: "11:30", kind: "regular" },
 ];
 
-// Anchor sim clock to a Monday 08:35 so demo defaults to an active session.
-function buildInitialSimNow(): Date {
-  const d = new Date();
-  const day = d.getDay(); // 0=Sun
-  // shift to Monday
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(8, 35, 0, 0);
-  return d;
-}
+// Sim clock now follows the real wall clock by default — lateness simulator
+// can still override it. An effect below re-syncs it every 30 seconds.
+function buildInitialSimNow(): Date { return new Date(); }
+
 
 function toMinutes(hhmm: string) { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; }
 
@@ -292,8 +296,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [simNow, setSimNow] = useState<Date>(buildInitialSimNow);
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("demo");
-  const advanceSim = (m: number) => setSimNow((d) => new Date(d.getTime() + m * 60000));
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("schedule");
+  const [simOverride, setSimOverride] = useState(false); // becomes true when lateness simulator overrides the wall clock
+  const advanceSim = (m: number) => { setSimOverride(true); setSimNow((d) => new Date(d.getTime() + m * 60000)); };
 
   const [sensors, setSensors] = useState<Sensors>({
     ambientLight: 35, presence: false, temperature: 24, targetTemp: 22,
@@ -311,7 +316,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // course takes the floor (with their preloaded material if available).
     if (scheduleMode === "demo") {
       if (!currentTeacherId) {
-        return { course: "Idle — waiting for instructor", instructor: "—", start: "--:--", end: "--:--", room: "A319", active: false, sessionId: null, courseId: null, ...overrideSchedule };
+        return { course: "Idle — waiting for instructor", instructor: "—", start: "--:--", end: "--:--", room: "A304", active: false, sessionId: null, courseId: null, ...overrideSchedule };
       }
       const course = courses.find((c) => c.instructorId === currentTeacherId);
       const sess = sessions.find((s) => s.instructorId === currentTeacherId && s.material) ?? sessions.find((s) => s.instructorId === currentTeacherId);
@@ -321,7 +326,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         instructor: teacher?.name ?? "—",
         start: sess?.start ?? simNow.toTimeString().slice(0, 5),
         end: sess?.end ?? "--:--",
-        room: "A319",
+        room: "A304",
         active: true,
         sessionId: sess?.id ?? null,
         courseId: course?.id ?? null,
@@ -331,10 +336,10 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }
 
     // SCHEDULE mode: driven by the (simulated) clock.
-    const { active, next } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+    const { active, next } = findActiveOrNext(sessions, "A304", classrooms, simNow);
     const s = active ?? next;
     if (!s) {
-      return { course: "No session scheduled", instructor: "—", start: "--:--", end: "--:--", room: "A319", active: false, sessionId: null, courseId: null, ...overrideSchedule };
+      return { course: "No session scheduled", instructor: "—", start: "--:--", end: "--:--", room: "A304", active: false, sessionId: null, courseId: null, ...overrideSchedule };
     }
     const course = courses.find((c) => c.id === s.courseId);
     const teacher = teachers.find((t) => t.id === s.instructorId);
@@ -344,7 +349,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       instructor: teacher?.name ?? "—",
       start: s.start,
       end: s.end,
-      room: room?.name ?? "A319",
+      room: room?.name ?? "A304",
       active: !!active,
       sessionId: s.id,
       courseId: s.courseId,
@@ -387,7 +392,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // SCHEDULE mode guard: only the instructor scheduled for the active slot
     // may take the floor. Anyone else gets notified that the slot is taken.
     if (scheduleMode === "schedule") {
-      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      const { active } = findActiveOrNext(sessions, "A304", classrooms, simNow);
       if (active && active.instructorId !== teacherId) {
         const scheduledTeacher = teachers.find((x) => x.id === active.instructorId);
         const c = courses.find((x) => x.id === active.courseId);
@@ -396,7 +401,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
           id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Smart Classroom",
           toRole: "instructor", toId: teacherId,
           subject: "Slot already scheduled",
-          body: `You were recognized in A319, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
+          body: `You were recognized in A304, but ${scheduledTeacher?.name ?? "another instructor"} is scheduled to teach ${c?.code ?? ""} ${c?.name ?? ""} during this time. Sharing & recording were not started.`,
         }, ...prev]);
         // Still record presence (face was seen) so lights/attendance respond, but do not start the session.
         setTeacherPresent(true);
@@ -417,7 +422,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     // Decide whether to auto-start the lecture.
     let startSession = true;
     if (scheduleMode === "schedule") {
-      const { active } = findActiveOrNext(sessions, "A319", classrooms, simNow);
+      const { active } = findActiveOrNext(sessions, "A304", classrooms, simNow);
       startSession = !!active && active.instructorId === teacherId;
     }
 
@@ -444,11 +449,17 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         ...prev,
       ]);
     }
-    log("Face Recognition", `Teacher ${currentTeacher} left — auto-stopping share & recording`, "info");
+    log("Face Recognition", `Teacher ${currentTeacher} left — finalising attendance & stopping share/recording`, "info");
     setTeacherPresent(false);
     setCurrentTeacher(null);
     setCurrentTeacherId(null);
     setDevices((d) => ({ ...d, sharing: false, recording: false }));
+    // Finalise the roll: anyone not present at sign-out stays absent for this session.
+    setStudents((prev) => {
+      const presentNow = prev.filter((s) => s.present);
+      log("Attendance", `Session attendance recorded — ${presentNow.length} present / ${prev.length - presentNow.length} absent`, "success");
+      return prev.map((s) => ({ ...s, present: false, checkInMethod: null, checkInTime: undefined, lateness: undefined }));
+    });
   };
 
   const checkOutAll = () => {
@@ -521,6 +532,52 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     }, 2000);
     return () => clearInterval(t);
   }, [students, teacherPresent]);
+
+  // Keep sim clock in sync with the real wall clock unless the lateness simulator has explicitly overridden it.
+  useEffect(() => {
+    if (simOverride) return;
+    const t = setInterval(() => setSimNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, [simOverride]);
+
+  // Auto-end a session when its end time passes (schedule mode, real-time driven).
+  const endedSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (scheduleMode !== "schedule" || !teacherPresent || !schedule.active || !schedule.sessionId) return;
+    const [eh, em] = schedule.end.split(":").map(Number);
+    const nowMin = simNow.getHours() * 60 + simNow.getMinutes();
+    if (nowMin >= eh * 60 + em && endedSessionRef.current !== schedule.sessionId) {
+      endedSessionRef.current = schedule.sessionId;
+      log("Schedule", `Course ${schedule.course} reached its end time — finalising attendance`, "info");
+      checkOutTeacher();
+    }
+  }, [simNow, schedule.sessionId, schedule.end, schedule.active, scheduleMode, teacherPresent]);
+
+  // Notify the active instructor whenever a student's attention drops below 50%
+  // (especially important while the lecture is being recorded so they can react).
+  const lowAttnRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!teacherPresent || !currentTeacherId) return;
+    const low = students.filter((s) => s.present && (s.attention ?? 100) < 50);
+    const recording = devices.recording;
+    low.forEach((s) => {
+      if (lowAttnRef.current.has(s.id)) return;
+      lowAttnRef.current.add(s.id);
+      const subject = recording ? "Low attention during recording" : "Low attention alert";
+      setNotifications((prev) => [{
+        id: crypto.randomUUID(), time: new Date().toLocaleString(), fromRole: "system", fromName: "Attention Monitor",
+        toRole: "instructor", toId: currentTeacherId,
+        subject,
+        body: `${s.name} has dropped to ${Math.round(s.attention ?? 0)}% attention${recording ? " — the lecture is currently being recorded, consider a quick re-engagement." : "."}`,
+      }, ...prev]);
+      log("Attention", `Alert sent to ${currentTeacher}: ${s.name} attention ${Math.round(s.attention ?? 0)}%`, "warn");
+    });
+    // Reset the dedup set when the student recovers, so a new dip re-alerts.
+    students.forEach((s) => {
+      if ((s.attention ?? 100) >= 65) lowAttnRef.current.delete(s.id);
+    });
+  }, [students, teacherPresent, currentTeacherId, currentTeacher, devices.recording]);
+
 
   // CRUD
   const upsertStudent = (s: Student) => setStudents((prev) => prev.some((x) => x.id === s.id) ? prev.map((x) => x.id === s.id ? s : x) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
