@@ -372,21 +372,27 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
               <>
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
 
-                {!liveStream && autoMode && hasMaterial && blobUrl && (
-                  <iframe title={schedule.material!.title} src={blobUrl} className="absolute inset-0 w-full h-full bg-white" />
-                )}
-
-                {!liveStream && autoMode && hasMaterial && !blobUrl && materialUrl && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
-                    <div className="text-center max-w-md">
-                      <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
-                      <div className="text-xs uppercase tracking-widest text-muted-foreground">Loading preloaded material…</div>
-                      <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
-                      <a href={materialUrl} target="_blank" rel="noreferrer"
-                        className="mt-4 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border bg-secondary hover:bg-secondary/80">
-                        <ExternalLink className="w-3.5 h-3.5" /> Open in new tab
-                      </a>
-                    </div>
+                {!liveStream && autoMode && hasMaterial && materialUrl && (
+                  <div ref={pdfFrameRef} className="absolute inset-0 bg-white grid place-items-center p-3">
+                    {pdfStatus === "ready" && <canvas ref={pdfCanvasRef} className="max-w-full max-h-full shadow-lg" />}
+                    {pdfStatus !== "ready" && (
+                      <div className="text-center max-w-md text-background">
+                        {pdfStatus === "loading" ? <Loader2 className="w-14 h-14 mx-auto text-primary mb-4 animate-spin" /> : <FileText className="w-14 h-14 mx-auto text-primary mb-4" />}
+                        <div className="text-xs uppercase tracking-widest opacity-70">{pdfStatus === "error" ? "Slide renderer needs reload" : "Loading preloaded material…"}</div>
+                        <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
+                      </div>
+                    )}
+                    {pdfStatus === "ready" && pdfPages > 1 && (
+                      <div className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs shadow-sm">
+                        <button onClick={() => setPdfPage((p) => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="p-1 rounded hover:bg-secondary disabled:opacity-40" aria-label="Previous slide">
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span>{pdfPage} / {pdfPages}</span>
+                        <button onClick={() => setPdfPage((p) => Math.min(pdfPages, p + 1))} disabled={pdfPage >= pdfPages} className="p-1 rounded hover:bg-secondary disabled:opacity-40" aria-label="Next slide">
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
