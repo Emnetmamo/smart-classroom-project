@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "ba20d021-920f-4a46-96ae-9f2a2308736f",
-  "project_id": "675714d2-1adb-4ba5-8200-4484e82e3490",
-  "url": "/__l5e/assets-v1/ba20d021-920f-4a46-96ae-9f2a2308736f/computer-networks-slides.pdf",
-  "r2_key": "a/v1/675714d2-1adb-4ba5-8200-4484e82e3490/ba20d021-920f-4a46-96ae-9f2a2308736f/computer-networks-slides.pdf",
-  "original_filename": "computer-networks-slides.pdf",
-  "size": 4232004,
   "content_type": "application/pdf",
-  "created_at": "2026-06-03T17:32:27Z"
+  "created_at": "2026-06-03T17:32:27Z",
+  "original_filename": "computer-networks-slides.pdf",
+  "project_id": "d5cfb7dc-97fc-4a18-b89c-01810add8db5",
+  "r2_key": "a/v1/d5cfb7dc-97fc-4a18-b89c-01810add8db5/ba20d021-920f-4a46-96ae-9f2a2308736f/computer-networks-slides.pdf",
+  "size": 4232004,
+  "url": "/__l5e/assets-v1/ba20d021-920f-4a46-96ae-9f2a2308736f/computer-networks-slides.pdf",
+  "version": 1
 }
