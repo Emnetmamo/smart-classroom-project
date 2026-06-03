@@ -251,7 +251,8 @@ function ComposeNotification({ fromRole, fromName, toRoles, students }: {
   toRoles: ("coordinator" | "instructor" | "student")[];
   students?: { id: string; name: string }[];
 }) {
-  const { sendNotification, teachers } = useClassroom();
+  const { sendNotification, teachers, notifications } = useClassroom();
+  const sent = notifications.filter((n) => n.fromRole === fromRole && n.fromName === fromName);
   const [toRole, setToRole] = useState<"coordinator" | "instructor" | "student">(toRoles[0]);
   const [toId, setToId] = useState<string>("");
   const [subject, setSubject] = useState("");
