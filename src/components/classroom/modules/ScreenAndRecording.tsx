@@ -102,7 +102,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
       void pdfDocRef.current?.cleanup();
       pdfDocRef.current = null;
     };
-  }, [materialUrl, hasMaterial, schedule.material?.title, log]);
+  }, [materialUrl, hasMaterial, schedule.material?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onResize = () => setPdfRenderTick((n) => n + 1);
