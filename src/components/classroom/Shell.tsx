@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, ScanFace, CreditCard, Lightbulb, Thermometer, Wind,
-  Eye, MonitorPlay, Video, ShieldCheck, Activity, LogOut, Clock, FastForward,
+  Eye, MonitorPlay, Video, ShieldCheck, Activity, LogOut, Clock, FastForward, Rewind,
 } from "lucide-react";
 import { useClassroom } from "@/lib/classroom-store";
 import { cn } from "@/lib/utils";
