@@ -230,6 +230,7 @@ function StudentsTab() {
           <Field label="Full name"><input className={inputCls} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required /></Field>
           <Field label="Email"><input className={inputCls} type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} required /></Field>
           <Field label="RFID tag"><input className={inputCls} value={edit.rfid} onChange={(e) => setEdit({ ...edit, rfid: e.target.value })} required /></Field>
+          <div className="sm:col-span-2"><AvatarField value={edit.avatar} onChange={(avatar) => setEdit({ ...edit, avatar })} /></div>
           <div className="sm:col-span-2 flex gap-2"><button className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm">Save</button><button type="button" onClick={() => setEdit(null)} className="px-3 py-1.5 rounded bg-secondary border border-border text-sm">Cancel</button></div>
         </form>
       )}
