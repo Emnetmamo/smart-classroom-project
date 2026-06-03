@@ -1,70 +1,177 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useClassroom } from "@/lib/classroom-store";
 import { Panel } from "../ui";
-import { MonitorPlay, Video, Square, Download, FileText, AlertCircle } from "lucide-react";
+import {
+  MonitorPlay, Video, Square, Download, FileText, AlertCircle,
+  ScanFace, Camera, CameraOff, Loader2, UserCheck, ExternalLink,
+} from "lucide-react";
+import { buildMatcher, detectAndMatch, type KnownPerson, type LiveMatch } from "@/lib/face-recognition";
+import type { FaceMatcher } from "@vladmandic/face-api";
+
+const MATCH_THRESHOLD = 0.5;
+const STABLE_HITS = 2;
 
 // Smart Screen Sharing + Lecture Recording.
-// Auto-driven by schedule + teacher face verification.
-// - On teacher verification: devices.sharing = true.
-//   If preloaded material exists, the deck is shown (and is downloadable).
-//   Otherwise the instructor is prompted to share their actual screen.
-// - Recording starts implicitly the moment sharing becomes active and now
-//   captures the microphone audio together with the screen.
+//
+// New flow:
+//   1. Camera opens and runs face recognition against the registered teacher portraits.
+//   2. When a teacher's face is matched, the camera is replaced by the Live Canvas:
+//      preloaded slides auto-load (or the instructor can override with their screen).
+//   3. Recording (screen + mic) is implicit and starts the moment sharing goes live.
+//
+// Preloaded PDFs are fetched as same-origin blob URLs to bypass the "blocked by Chrome"
+// message some browsers show when embedding cross-origin PDFs in an <iframe>.
 export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
-  const { setDevice, log, schedule, devices, teacherPresent, currentTeacher, checkOutTeacher, addRecording } = useClassroom();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const {
+    setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
+    checkInTeacher, checkOutTeacher, addRecording,
+  } = useClassroom();
+
+  // --- screen / recording refs ---
+  const videoRef = useRef<HTMLVideoElement>(null);         // screen share preview
+  const camRef = useRef<HTMLVideoElement>(null);           // face-verification webcam
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const extraTracksRef = useRef<MediaStreamTrack[]>([]);
+
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
-  const autoMode = devices.sharing && !liveStream; // sharing driven by store w/ no manual stream → preloaded material mode
+  // --- face verification state ---
+  const matcherRef = useRef<FaceMatcher | null>(null);
+  const loopRef = useRef<number | null>(null);
+  const hitsRef = useRef<Record<string, number>>({});
+  const [camOn, setCamOn] = useState(false);
+  const [modelState, setModelState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const knownTeachers = teachers.filter((t) => t.avatar);
+
+  const autoMode = devices.sharing && !liveStream;
   const hasMaterial = !!schedule.material?.preloaded;
   const materialUrl = schedule.material?.url;
 
-  useEffect(() => () => stopMediaTracks(), []);
+  // Serve preloaded PDFs from a same-origin blob URL so Chrome doesn't block the iframe.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!materialUrl) { setBlobUrl(null); return; }
+    let cancelled = false;
+    let created: string | null = null;
+    fetch(materialUrl)
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
+      .then((b) => {
+        if (cancelled) return;
+        const pdf = new Blob([b], { type: "application/pdf" });
+        created = URL.createObjectURL(pdf);
+        setBlobUrl(created);
+      })
+      .catch(() => log("Smart Screen", "Could not fetch preloaded material", "warn"));
+    return () => { cancelled = true; if (created) URL.revokeObjectURL(created); };
+  }, [materialUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Recording timer
+  useEffect(() => () => { stopMediaTracks(); stopCamera(); }, []);
+
   useEffect(() => {
     if (!devices.recording) return;
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, [devices.recording]);
 
-  // When sharing turns off externally (e.g. teacher signed out), stop any real stream
+  // Auto-stop camera once a teacher is verified — the Live Canvas takes over.
+  useEffect(() => {
+    if (teacherPresent && camOn) stopCamera();
+  }, [teacherPresent, camOn]);
+
+  // If sharing turns off externally (sign-out / end of session) stop everything.
   useEffect(() => {
     if (!devices.sharing && liveStream) stopMediaTracks();
     if (!devices.sharing) setElapsed(0);
-  }, [devices.sharing]);
+  }, [devices.sharing]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---------- Face verification ----------
+  const ensureMatcher = useCallback(async () => {
+    if (matcherRef.current) return matcherRef.current;
+    setModelState("loading");
+    log("Face Recognition", "Loading models for instructor verification…");
+    try {
+      const people: KnownPerson[] = knownTeachers.map((t) => ({ label: t.id, name: t.name, imageUrl: t.avatar! }));
+      const { matcher, failed } = await buildMatcher(people, MATCH_THRESHOLD);
+      matcherRef.current = matcher;
+      setModelState("ready");
+      log("Face Recognition", `Ready · ${people.length - failed.length} teacher faces encoded${failed.length ? ` (failed: ${failed.join(", ")})` : ""}`, failed.length ? "warn" : "success");
+      return matcher;
+    } catch {
+      setModelState("error");
+      log("Face Recognition", "Failed to load face models", "error");
+      return null;
+    }
+  }, [knownTeachers, log]);
+
+  async function tick() {
+    const v = camRef.current;
+    const matcher = matcherRef.current;
+    if (!v || !matcher || v.readyState < 2) return;
+    try {
+      const found = await detectAndMatch(v, matcher);
+      setMatches(found);
+      for (const m of found) {
+        if (m.label === "unknown") continue;
+        hitsRef.current[m.label] = (hitsRef.current[m.label] ?? 0) + 1;
+        if (hitsRef.current[m.label] === STABLE_HITS) {
+          const t = teachers.find((x) => x.id === m.label);
+          if (t) {
+            log("Face Recognition", `Instructor confirmed: ${t.name} (${Math.round((1 - m.distance) * 100)}% match)`, "success");
+            checkInTeacher(t.id);
+          }
+        }
+      }
+    } catch { /* transient frame error */ }
+  }
+
+  async function startCamera() {
+    const matcher = await ensureMatcher();
+    if (!matcher) return;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      if (camRef.current) camRef.current.srcObject = s;
+      setCamOn(true);
+      hitsRef.current = {};
+      log("Face Recognition", "Verification camera live", "success");
+      loopRef.current = window.setInterval(tick, 600);
+    } catch {
+      log("Face Recognition", "Webcam unavailable — grant camera permission", "error");
+    }
+  }
+
+  function stopCamera() {
+    if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
+    const v = camRef.current;
+    const tracks = (v?.srcObject as MediaStream | null)?.getTracks() ?? [];
+    tracks.forEach((t) => t.stop());
+    if (v) v.srcObject = null;
+    setCamOn(false);
+    setMatches([]);
+  }
+
+  // ---------- Manual screen share + recording ----------
   async function startManualShare() {
     try {
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-
-      // Add the microphone so the instructor's voice is always recorded,
-      // even when the OS does not provide system/tab audio.
       let mic: MediaStream | null = null;
-      try {
-        mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        log("Recording", "Microphone unavailable — recording screen audio only", "warn");
-      }
+      try { mic = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch { log("Recording", "Microphone unavailable — recording screen audio only", "warn"); }
 
-      // Build a combined stream: screen video + every available audio track.
       const combined = new MediaStream();
       display.getVideoTracks().forEach((t) => combined.addTrack(t));
       display.getAudioTracks().forEach((t) => combined.addTrack(t));
       mic?.getAudioTracks().forEach((t) => { combined.addTrack(t); extraTracksRef.current.push(t); });
 
-      if (videoRef.current) videoRef.current.srcObject = display; // preview is muted to avoid feedback
+      if (videoRef.current) videoRef.current.srcObject = display;
       setLiveStream(true);
       setDevice("sharing", true);
-      setDevice("recording", true); // implicit: recording starts with sharing
-      log("Smart Screen", "Instructor shared their screen — recording (screen + audio) started", "success");
+      setDevice("recording", true);
+      log("Smart Screen", "Instructor shared their screen — recording started", "success");
 
-      // begin recording
       chunksRef.current = [];
       const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
         ? "video/webm;codecs=vp9,opus"
@@ -75,7 +182,6 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
-        // Persist so students can download / review it in their portal.
         addRecording({
           sessionId: schedule.sessionId ?? "live",
           courseId: schedule.courseId ?? "live",
@@ -111,72 +217,133 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
 
   const title = mode === "screen" ? "Smart Screen Sharing" : "Smart Lecture Recording";
   const Icon = mode === "screen" ? MonitorPlay : Video;
+  const vw = camRef.current?.videoWidth || 1;
+  const vh = camRef.current?.videoHeight || 1;
+
+  // What to render in the main canvas: verification cam → preloaded slides → live screen.
+  const showCam = !teacherPresent;
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><Icon className="w-6 h-6 text-primary" /> {title}</h1>
         <p className="text-sm text-muted-foreground">
-          Implicit: triggered by schedule + teacher face verification. Recording captures the screen and microphone audio, and starts automatically the moment sharing goes live.
+          Instructor verifies via face on this screen — once recognized, preloaded slides auto-load and recording begins. No tab-switching required.
         </p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Panel title="Live canvas" className="lg:col-span-2"
-          subtitle={autoMode && hasMaterial ? "Auto · preloaded material" : liveStream ? "Live screen share" : "Idle"}>
+        <Panel
+          title={showCam ? "Instructor verification" : "Live canvas"}
+          className="lg:col-span-2"
+          subtitle={showCam
+            ? (modelState === "loading" ? "Loading models…" : camOn ? "Scanning…" : "Camera off")
+            : autoMode && hasMaterial ? "Auto · preloaded material" : liveStream ? "Live screen share" : "Idle"}
+          action={showCam ? (
+            <button onClick={camOn ? stopCamera : startCamera} disabled={modelState === "loading"}
+              className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1.5 disabled:opacity-50">
+              {modelState === "loading" ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading</>
+                : camOn ? <><CameraOff className="w-3.5 h-3.5" /> Stop</>
+                : <><Camera className="w-3.5 h-3.5" /> Start camera</>}
+            </button>
+          ) : undefined}>
+
           <div className="aspect-video bg-black rounded-lg overflow-hidden border border-border relative">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
-
-            {!liveStream && autoMode && hasMaterial && materialUrl && (
-              <iframe title={schedule.material!.title} src={materialUrl} className="absolute inset-0 w-full h-full bg-white" />
-            )}
-
-            {!liveStream && autoMode && hasMaterial && !materialUrl && schedule.material && (
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
-                <div className="text-center max-w-md">
-                  <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground">Preloaded material · {schedule.material.type}</div>
-                  <div className="text-xl font-semibold mt-2">{schedule.material.title}</div>
-                  <div className="mt-2 text-sm text-muted-foreground">{schedule.course} · {currentTeacher}</div>
-                </div>
-              </div>
-            )}
-
-            {!liveStream && autoMode && !hasMaterial && (
-              <div className="absolute inset-0 grid place-items-center bg-background/80 p-6">
-                <div className="text-center max-w-sm">
-                  <AlertCircle className="w-10 h-10 mx-auto text-[color:var(--warning)] mb-2" />
-                  <div className="font-medium">No preloaded material</div>
-                  <div className="text-sm text-muted-foreground mt-1">Recording is armed — share your screen to begin streaming.</div>
-                  <button onClick={startManualShare} className="mt-4 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
-                    <MonitorPlay className="w-4 h-4" /> Share screen now
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!devices.sharing && (
-              <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-                <div className="text-center">
-                  <MonitorPlay className="w-12 h-12 mx-auto opacity-50" />
-                  <div className="text-sm mt-2">
-                    {teacherPresent
-                      ? "Awaiting active session window…"
-                      : "Waiting for instructor face verification."}
+            {/* --- VERIFICATION CAMERA --- */}
+            {showCam && (
+              <>
+                <video ref={camRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+                {!camOn && (
+                  <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
+                    <div className="text-center">
+                      <ScanFace className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <div>{modelState === "error" ? "Could not load models" : "Start the camera to verify the instructor"}</div>
+                      <div className="text-xs mt-1">Sharing & recording start automatically on a match.</div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
+                {camOn && matches.map((m, i) => {
+                  const known = m.label !== "unknown";
+                  const name = teachers.find((t) => t.id === m.label)?.name ?? "Unknown";
+                  return (
+                    <div key={i} className="absolute border-2 rounded"
+                      style={{
+                        left: `${(m.box.x / vw) * 100}%`,
+                        top: `${(m.box.y / vh) * 100}%`,
+                        width: `${(m.box.width / vw) * 100}%`,
+                        height: `${(m.box.height / vh) * 100}%`,
+                        borderColor: known ? "var(--success)" : "var(--destructive)",
+                      }}>
+                      <span className="absolute -top-6 left-0 text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap text-white"
+                        style={{ background: known ? "var(--success)" : "var(--destructive)" }}>
+                        {known ? `${name} · ${Math.round((1 - m.distance) * 100)}%` : "Unknown face"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </>
             )}
 
-            {devices.recording && (
-              <div className="absolute top-3 left-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-destructive/80 text-white text-xs">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC {fmt(elapsed)}
-              </div>
+            {/* --- LIVE CANVAS --- */}
+            {!showCam && (
+              <>
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+
+                {!liveStream && autoMode && hasMaterial && blobUrl && (
+                  <iframe title={schedule.material!.title} src={blobUrl} className="absolute inset-0 w-full h-full bg-white" />
+                )}
+
+                {!liveStream && autoMode && hasMaterial && !blobUrl && materialUrl && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 grid place-items-center p-8">
+                    <div className="text-center max-w-md">
+                      <FileText className="w-14 h-14 mx-auto text-primary mb-4" />
+                      <div className="text-xs uppercase tracking-widest text-muted-foreground">Loading preloaded material…</div>
+                      <div className="text-xl font-semibold mt-2">{schedule.material!.title}</div>
+                      <a href={materialUrl} target="_blank" rel="noreferrer"
+                        className="mt-4 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border bg-secondary hover:bg-secondary/80">
+                        <ExternalLink className="w-3.5 h-3.5" /> Open in new tab
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {!liveStream && autoMode && !hasMaterial && (
+                  <div className="absolute inset-0 grid place-items-center bg-background/80 p-6">
+                    <div className="text-center max-w-sm">
+                      <AlertCircle className="w-10 h-10 mx-auto text-[color:var(--warning)] mb-2" />
+                      <div className="font-medium">No preloaded material</div>
+                      <div className="text-sm text-muted-foreground mt-1">Recording is armed — share your screen to begin streaming.</div>
+                      <button onClick={startManualShare} className="mt-4 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
+                        <MonitorPlay className="w-4 h-4" /> Share screen now
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!devices.sharing && (
+                  <div className="absolute inset-0 grid place-items-center text-muted-foreground">
+                    <div className="text-center">
+                      <MonitorPlay className="w-12 h-12 mx-auto opacity-50" />
+                      <div className="text-sm mt-2">Awaiting active session window…</div>
+                    </div>
+                  </div>
+                )}
+
+                {devices.recording && (
+                  <div className="absolute top-3 left-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-destructive/80 text-white text-xs">
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC {fmt(elapsed)}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {/* Manual share is always available to the verified instructor — even when a preloaded deck is showing (override). */}
+          <div className="mt-4 flex flex-wrap gap-2 items-center">
+            {teacherPresent && (
+              <span className="text-xs inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[color:var(--success)]/15 text-[color:var(--success)] border border-[color:var(--success)]/30">
+                <UserCheck className="w-3.5 h-3.5" /> {currentTeacher} verified
+              </span>
+            )}
             {!liveStream && teacherPresent && (
               <button onClick={startManualShare} className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
                 <MonitorPlay className="w-4 h-4" /> {hasMaterial ? "Override · share my screen" : "Share my screen"}
@@ -210,7 +377,7 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
             <Row k="Recording" v={devices.recording ? `Recording · ${fmt(elapsed)}` : "Off"} />
           </dl>
           <div className="mt-4 text-xs text-muted-foreground leading-relaxed">
-            Recording is implicit: it starts the instant sharing becomes active and now includes microphone audio so lectures are captured with sound.
+            Verification → live canvas → recording all run in this panel. No need to switch tabs.
           </div>
         </Panel>
       </div>
