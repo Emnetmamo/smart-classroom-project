@@ -9,7 +9,7 @@ const MATCH_THRESHOLD = 0.5; // max descriptor distance to accept a match
 const STABLE_HITS = 2; // consecutive frames before marking attendance
 
 export function FaceAttendance() {
-  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, schedule, simNow, setSimNow, log } = useClassroom();
+  const { students, teachers, teacherPresent, currentTeacher, checkIn, checkInTeacher, checkOutTeacher, schedule, scheduleMode, setScheduleMode, simNow, setSimNow, log } = useClassroom();
   const videoRef = useRef<HTMLVideoElement>(null);
   const matcherRef = useRef<FaceMatcher | null>(null);
   const loopRef = useRef<number | null>(null);
