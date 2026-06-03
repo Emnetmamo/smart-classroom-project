@@ -208,56 +208,60 @@ const initialStudents: Student[] = [
 ];
 
 const initialTeachers: Teacher[] = [
-  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
   { id: "T-AYB", username: "ayalew", name: "Dr. Ayalew B.", email: "ayalew.b@aau.edu.et", phone: "+251 911 000001", department: "Computer Science", avatar: teacherAyalew },
   { id: "T-DGM", username: "dagmawi", name: "Dr. Dagmawi L.", email: "dagmawi.l@aau.edu.et", phone: "+251 911 000002", department: "Computer Science", avatar: teacherDagmawi },
-  { id: "T-SOL", username: "solomon", name: "Dr. Solomon T.", email: "solomon.t@aau.edu.et", phone: "+251 911 000006", department: "Computer Science" },
+  { id: "T-MLG", username: "mulugeta", name: "Dr. Mulugeta L.", email: "mulugeta.l@aau.edu.et", phone: "+251 911 000003", department: "Computer Science", avatar: teacherMulugeta },
+  { id: "T-YRG", username: "yaregal", name: "Dr. Yaregal A.", email: "yaregal.a@aau.edu.et", phone: "+251 911 000004", department: "Computer Science" },
+  { id: "T-DDA", username: "dida", name: "Dr. Dida M.", email: "dida.m@aau.edu.et", phone: "+251 911 000005", department: "Computer Science" },
 ];
 
 const initialClassrooms: Classroom[] = [
-  { id: "R-A319", name: "A319", capacity: 30, building: "Block A", floor: "3rd", equipment: ["Projector", "Smart Board", "AC", "Mics"] },
-  { id: "R-A320", name: "A320", capacity: 25, building: "Block A", floor: "3rd", equipment: ["Projector", "Whiteboard"] },
-  { id: "R-B210", name: "B210", capacity: 40, building: "Block B", floor: "2nd", equipment: ["Projector", "AC", "Smart Board"] },
+  { id: "R-A304", name: "A304", capacity: 30, building: "New Science Building", floor: "CS Floor", equipment: ["Projector", "Smart Board", "AC", "Mics"] },
+  { id: "R-322",  name: "322",  capacity: 30, building: "New Science Building", floor: "CS Floor", equipment: ["Projector", "Smart Board"] },
 ];
 
 const allStudentIds = initialStudents.map((s) => s.id);
 
 // Preloaded lecture decks shared by the verified instructor.
-const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
-const NETWORKS_MATERIAL = { title: "Overview of Computer Networks", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
+const SMART_COMPUTING_MATERIAL = { title: "Smart Computing — Design 2026 (Joint Network + Software stream)", type: "slides", preloaded: true, url: smartComputingSlides.url } as const;
+const NETWORKS_MATERIAL = { title: "Computer Networks — Addressing", type: "slides", preloaded: true, url: computerNetworksSlides.url } as const;
 
+// Course codes follow stream convention:  61xx = Data Stream · 62xx = Software Stream · 63xx = Network Stream.
+// Smart Computing (6316) is taken jointly by the Network and Software streams.
 const initialCourses: Course[] = [
-  { id: "C-ACN", code: "CoSc 6201", name: "Advanced Computer Networks", instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-EMB", code: "CoSc 6202", name: "Embedded Systems", instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-SMC", code: "CoSc 6203", name: "Smart Computing", instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
-  { id: "C-CYB", code: "CoSc 6204", name: "Cyber Security", instructorId: "T-SOL", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6104", code: "CoSc 6104", name: "Data Mining (Data Stream)",                     instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6102", code: "CoSc 6102", name: "Big Data Analytics (Data Stream)",              instructorId: "T-DDA", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6252", code: "CoSc 6252", name: "Software Architecture (Software Stream)",       instructorId: "T-YRG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6302", code: "CoSc 6302", name: "Advanced Computer Networks (Network Stream)",   instructorId: "T-MLG", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6314", code: "CoSc 6314", name: "Network Security (Network Stream)",             instructorId: "T-DGM", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
+  { id: "C-6316", code: "CoSc 6316", name: "Smart Computing (Network + Software · joint)",  instructorId: "T-AYB", numStudents: 10, durationMin: 60, studentIds: allStudentIds },
 ];
 
+// Weekly schedule for room A304 — mirrors the printed timetable. 1=Mon … 5=Fri.
 const initialSessions: SessionRow[] = [
-  { id: "S1",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 1, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S2",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 1, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S3",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 1, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S4",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 2, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S5",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 2, start: "10:30", end: "11:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S6",  courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 3, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S7",  courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 3, start: "10:30", end: "11:30", kind: "regular" },
-  { id: "S8",  courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 3, start: "13:30", end: "14:30", kind: "regular" },
-  { id: "S9",  courseId: "C-SMC", classroomId: "R-A319", instructorId: "T-DGM", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
-  { id: "S10", courseId: "C-ACN", classroomId: "R-A319", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
-  { id: "S11", courseId: "C-EMB", classroomId: "R-A319", instructorId: "T-AYB", day: 5, start: "08:30", end: "09:30", kind: "regular" },
-  { id: "S12", courseId: "C-CYB", classroomId: "R-A319", instructorId: "T-SOL", day: 5, start: "10:30", end: "11:30", kind: "regular" },
+  // Monday
+  { id: "S-MON-0830", courseId: "C-6104", classroomId: "R-A304", instructorId: "T-AYB", day: 1, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S-MON-1030", courseId: "C-6314", classroomId: "R-A304", instructorId: "T-DGM", day: 1, start: "10:30", end: "12:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S-MON-1330", courseId: "C-6252", classroomId: "R-A304", instructorId: "T-YRG", day: 1, start: "13:30", end: "14:30", kind: "regular" },
+  // Tuesday
+  { id: "S-TUE-0830", courseId: "C-6316", classroomId: "R-A304", instructorId: "T-AYB", day: 2, start: "08:30", end: "10:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S-TUE-1030", courseId: "C-6302", classroomId: "R-A304", instructorId: "T-MLG", day: 2, start: "10:30", end: "12:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  // Wednesday
+  { id: "S-WED-0830", courseId: "C-6104", classroomId: "R-A304", instructorId: "T-AYB", day: 3, start: "08:30", end: "09:30", kind: "regular" },
+  { id: "S-WED-1030", courseId: "C-6102", classroomId: "R-A304", instructorId: "T-DDA", day: 3, start: "10:30", end: "12:30", kind: "regular" },
+  { id: "S-WED-1330", courseId: "C-6252", classroomId: "R-A304", instructorId: "T-YRG", day: 3, start: "13:30", end: "14:30", kind: "regular" },
+  // Thursday
+  { id: "S-THU-0830", courseId: "C-6316", classroomId: "R-A304", instructorId: "T-AYB", day: 4, start: "08:30", end: "09:30", kind: "regular", material: { ...SMART_COMPUTING_MATERIAL } },
+  { id: "S-THU-1030", courseId: "C-6302", classroomId: "R-A304", instructorId: "T-MLG", day: 4, start: "10:30", end: "11:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  // Friday
+  { id: "S-FRI-0830", courseId: "C-6314", classroomId: "R-A304", instructorId: "T-DGM", day: 5, start: "08:30", end: "09:30", kind: "regular", material: { ...NETWORKS_MATERIAL } },
+  { id: "S-FRI-1030", courseId: "C-6102", classroomId: "R-A304", instructorId: "T-DDA", day: 5, start: "10:30", end: "11:30", kind: "regular" },
 ];
 
-// Anchor sim clock to a Monday 08:35 so demo defaults to an active session.
-function buildInitialSimNow(): Date {
-  const d = new Date();
-  const day = d.getDay(); // 0=Sun
-  // shift to Monday
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(8, 35, 0, 0);
-  return d;
-}
+// Sim clock now follows the real wall clock by default — lateness simulator
+// can still override it. An effect below re-syncs it every 30 seconds.
+function buildInitialSimNow(): Date { return new Date(); }
+const DEFAULT_ROOM = "A304";
 
 function toMinutes(hhmm: string) { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; }
 
