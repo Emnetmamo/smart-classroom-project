@@ -261,7 +261,7 @@ const initialSessions: SessionRow[] = [
 // Sim clock now follows the real wall clock by default — lateness simulator
 // can still override it. An effect below re-syncs it every 30 seconds.
 function buildInitialSimNow(): Date { return new Date(); }
-const DEFAULT_ROOM = "A304";
+
 
 function toMinutes(hhmm: string) { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; }
 
