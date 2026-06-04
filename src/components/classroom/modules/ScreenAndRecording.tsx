@@ -255,7 +255,7 @@ export function ScreenAndRecording({
     lastSlideMoveRef.current = Date.now();
   }, [pdfPage]);
   useEffect(() => {
-    if (!devices.recording || !hasMaterial || !teacherPresent) return;
+    if (!devices.recording || !hasMaterial || !teacherPresent || !autoMode) return;
     lastSlideMoveRef.current = Date.now();
     const t = setInterval(() => {
       const recordingAgeMs = Date.now() - recordingStartRef.current;
@@ -266,7 +266,7 @@ export function ScreenAndRecording({
       }
     }, 5_000);
     return () => clearInterval(t);
-  }, [devices.recording, hasMaterial, teacherPresent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [devices.recording, hasMaterial, teacherPresent, autoMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function buildRecordingName() {
     const cleanCourse =
