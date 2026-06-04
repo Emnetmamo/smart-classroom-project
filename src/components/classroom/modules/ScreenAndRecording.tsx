@@ -263,6 +263,16 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
     return stream;
   }
 
+  function waitForVideoReady(video: HTMLVideoElement) {
+    if (video.readyState >= 2 && video.videoWidth > 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = () => resolve();
+      video.addEventListener("loadedmetadata", done, { once: true });
+      video.addEventListener("playing", done, { once: true });
+      window.setTimeout(done, 1500);
+    });
+  }
+
   function mixAudioStreams(streams: Array<MediaStream | null>) {
     const tracks = streams.flatMap((stream) => stream?.getAudioTracks() ?? []);
     if (!tracks.length) return null;
