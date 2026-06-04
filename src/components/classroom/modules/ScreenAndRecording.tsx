@@ -10,6 +10,7 @@ import { buildMatcher, detectAndMatch, type KnownPerson, type LiveMatch } from "
 import type { FaceMatcher } from "@vladmandic/face-api";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import fixWebmDuration from "fix-webm-duration";
 
 const MATCH_THRESHOLD = 0.5;
 const STABLE_HITS = 2;
