@@ -176,6 +176,23 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
     }
   }, [devices.sharing]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- 1-minute slide-inactivity auto-end ----
+  // If recording is rolling on preloaded slides and the instructor doesn't
+  // advance/rewind for >60s, end the session automatically (unless they've
+  // already explicitly hit "End session", which clears devices.recording).
+  const lastSlideMoveRef = useRef<number>(Date.now());
+  useEffect(() => { lastSlideMoveRef.current = Date.now(); }, [pdfPage]);
+  useEffect(() => {
+    if (!devices.recording || !hasMaterial || !teacherPresent) return;
+    const t = setInterval(() => {
+      if (Date.now() - lastSlideMoveRef.current > 60_000) {
+        log("Recording", "No slide movement for 1 min — auto-ending session", "warn");
+        checkOutTeacher();
+      }
+    }, 5_000);
+    return () => clearInterval(t);
+  }, [devices.recording, hasMaterial, teacherPresent]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-start canvas recording when preloaded material is rendering (no manual screen share).
   useEffect(() => {
     if (!teacherPresent || !autoMode || !hasMaterial || pdfStatus !== "ready") return;
