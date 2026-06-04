@@ -10,7 +10,7 @@ import { TempControl } from "@/components/classroom/modules/TempControl";
 import { AirQuality } from "@/components/classroom/modules/AirQuality";
 import { AttentionMonitor } from "@/components/classroom/modules/AttentionMonitor";
 import { ScreenAndRecording } from "@/components/classroom/modules/ScreenAndRecording";
-import { CoordinatorWorkspace } from "@/components/classroom/modules/CoordinatorWorkspace";
+
 import { PortalSelector, type Portal } from "@/components/classroom/PortalSelector";
 import { Login } from "@/components/classroom/Login";
 import { InstructorPortal, StudentPortal } from "@/components/classroom/Portals";
@@ -97,6 +97,7 @@ function AdminRolePicker({ onPick, onBack }: { onPick: (r: "coordinator" | "admi
 
 function SystemPortalShell({ onBack }: { onBack: () => void }) {
   const [active, setActive] = useState<ModuleId>("dashboard");
+  const showScreen = active === "screen" || active === "record";
   return (
     <Shell active={active} onChange={setActive} onSwitchPortal={onBack} portalLabel="System Portal">
       {active === "dashboard" && <Dashboard />}
@@ -106,9 +107,10 @@ function SystemPortalShell({ onBack }: { onBack: () => void }) {
       {active === "temp" && <TempControl />}
       {active === "air" && <AirQuality />}
       {active === "attention" && <AttentionMonitor />}
-      {active === "screen" && <ScreenAndRecording mode="screen" />}
-      {active === "record" && <ScreenAndRecording mode="record" />}
-      {active === "admin" && <CoordinatorWorkspace />}
+      {/* Screen & Recording stays mounted so recording can continue in background (mini mode) when navigating away. */}
+      <div style={{ display: showScreen ? "block" : "none" }}>
+        <ScreenAndRecording mode={active === "screen" ? "screen" : "record"} backgroundActive={!showScreen} onJumpBack={() => setActive("record")} />
+      </div>
     </Shell>
   );
 }

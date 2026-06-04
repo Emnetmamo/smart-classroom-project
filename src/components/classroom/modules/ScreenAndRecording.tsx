@@ -24,11 +24,13 @@ const STABLE_HITS = 2;
 //
 // Preloaded PDFs are rendered page-by-page onto a canvas with PDF.js. This avoids
 // Chrome's built-in PDF viewer entirely, so it cannot show "blocked by Chrome".
-export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
+export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack }: { mode: "screen" | "record"; backgroundActive?: boolean; onJumpBack?: () => void }) {
   const {
     setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
-    checkInTeacher, checkOutTeacher, addRecording,
+    checkInTeacher, checkOutTeacher, addRecording, teacherAttendance,
   } = useClassroom();
+  const openTeacherRecord = teacherAttendance.find((r) => !r.checkOutTime);
+  const teacherLateness = openTeacherRecord?.lateness;
 
   // --- screen / recording refs ---
   const videoRef = useRef<HTMLVideoElement>(null);         // screen share preview
@@ -173,6 +175,23 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
       setElapsed(0);
     }
   }, [devices.sharing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- 1-minute slide-inactivity auto-end ----
+  // If recording is rolling on preloaded slides and the instructor doesn't
+  // advance/rewind for >60s, end the session automatically (unless they've
+  // already explicitly hit "End session", which clears devices.recording).
+  const lastSlideMoveRef = useRef<number>(Date.now());
+  useEffect(() => { lastSlideMoveRef.current = Date.now(); }, [pdfPage]);
+  useEffect(() => {
+    if (!devices.recording || !hasMaterial || !teacherPresent) return;
+    const t = setInterval(() => {
+      if (Date.now() - lastSlideMoveRef.current > 60_000) {
+        log("Recording", "No slide movement for 1 min — auto-ending session", "warn");
+        checkOutTeacher();
+      }
+    }, 5_000);
+    return () => clearInterval(t);
+  }, [devices.recording, hasMaterial, teacherPresent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-start canvas recording when preloaded material is rendering (no manual screen share).
   useEffect(() => {
@@ -363,6 +382,19 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
 
   return (
     <div className="space-y-6">
+      {/* Mini-mode floating indicator — when this module is mounted in background and recording is rolling. */}
+      {backgroundActive && devices.recording && (
+        <div className="fixed bottom-4 right-4 z-50 bg-card/95 backdrop-blur border border-border rounded-lg shadow-lg px-3 py-2 flex items-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+          <div className="text-xs">
+            <div className="font-medium">Recording · {fmt(elapsed)}</div>
+            <div className="text-muted-foreground">{schedule.course}</div>
+          </div>
+          {onJumpBack && (
+            <button onClick={onJumpBack} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground">Open</button>
+          )}
+        </div>
+      )}
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><Icon className="w-6 h-6 text-primary" /> {title}</h1>
         <p className="text-sm text-muted-foreground">
@@ -486,6 +518,16 @@ export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
             {teacherPresent && (
               <span className="text-xs inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[color:var(--success)]/15 text-[color:var(--success)] border border-[color:var(--success)]/30">
                 <UserCheck className="w-3.5 h-3.5" /> {currentTeacher} verified
+              </span>
+            )}
+            {teacherPresent && teacherLateness && (
+              <span className={`text-xs inline-flex items-center gap-1.5 px-2 py-1 rounded-full border font-medium ${
+                teacherLateness === "on-time"
+                  ? "bg-[color:var(--success)]/20 text-[color:var(--success)] border-[color:var(--success)]/50"
+                  : teacherLateness === "warning"
+                  ? "bg-[color:var(--warning)]/25 text-[color:var(--warning)] border-[color:var(--warning)]/60"
+                  : "bg-destructive/25 text-destructive-foreground border-destructive/60"}`}>
+                Arrival: {teacherLateness === "on-time" ? "On time" : teacherLateness === "warning" ? "Warning (10 min late)" : "Late"}
               </span>
             )}
             {!liveStream && teacherPresent && (

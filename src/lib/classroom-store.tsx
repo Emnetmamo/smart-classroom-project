@@ -479,6 +479,26 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // If a different teacher is taking the floor, snapshot & reset student
+    // attendance so the new course re-takes attendance from scratch.
+    if (currentTeacherId && currentTeacherId !== teacherId) {
+      const prevCourse = courses.find((c) => c.instructorId === currentTeacherId);
+      const prevCourseName = prevCourse ? `${prevCourse.code} · ${prevCourse.name}` : "Previous session";
+      const date = simNow.toISOString().slice(0, 10);
+      setStudentAttendance((prev) => [
+        ...students.map<StudentAttendanceRecord>((s) => ({
+          id: crypto.randomUUID(),
+          studentId: s.id, studentName: s.name,
+          courseId: prevCourse?.id ?? null, courseName: prevCourseName, sessionId: null,
+          date, checkInTime: s.checkInTime, present: s.present, lateness: s.lateness,
+          method: s.checkInMethod ?? undefined,
+        })),
+        ...prev,
+      ]);
+      setStudents((prev) => prev.map((s) => ({ ...s, present: false, checkInMethod: null, checkInTime: undefined, lateness: undefined })));
+      log("Attendance", `Course changed — student attendance re-opened for ${t.name}`, "info");
+    }
+
     setTeacherPresent(true);
     setCurrentTeacher(t.name);
     setCurrentTeacherId(t.id);
