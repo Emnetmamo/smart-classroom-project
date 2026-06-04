@@ -252,7 +252,9 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
     recordingCanvas.height = RECORDING_HEIGHT;
     const ctx = recordingCanvas.getContext("2d");
     if (!ctx) throw new Error("Could not create recording canvas");
-    const draw = () => drawContained(ctx, source, source.videoWidth || RECORDING_WIDTH, source.videoHeight || RECORDING_HEIGHT);
+    const draw = () => {
+      if (source.readyState >= 2) drawContained(ctx, source, source.videoWidth || RECORDING_WIDTH, source.videoHeight || RECORDING_HEIGHT);
+    };
     draw();
     recordingDrawTimerRef.current = window.setInterval(draw, 1000 / RECORDING_FPS);
     recordingCanvasRef.current = recordingCanvas;
@@ -280,6 +282,11 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
       recordingDrawTimerRef.current = null;
     }
     recordingCanvasRef.current = null;
+  }
+
+  function closeAudioContexts() {
+    audioContextsRef.current.forEach((ctx) => void ctx.close().catch(() => {}));
+    audioContextsRef.current = [];
   }
 
   async function saveRecordingBlob(raw: Blob, durationMs: number, snap: { sessionId: string; courseId: string; title: string }) {
