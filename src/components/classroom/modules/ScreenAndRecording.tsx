@@ -382,6 +382,19 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
 
   return (
     <div className="space-y-6">
+      {/* Mini-mode floating indicator — when this module is mounted in background and recording is rolling. */}
+      {backgroundActive && devices.recording && (
+        <div className="fixed bottom-4 right-4 z-50 bg-card/95 backdrop-blur border border-border rounded-lg shadow-lg px-3 py-2 flex items-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+          <div className="text-xs">
+            <div className="font-medium">Recording · {fmt(elapsed)}</div>
+            <div className="text-muted-foreground">{schedule.course}</div>
+          </div>
+          {onJumpBack && (
+            <button onClick={onJumpBack} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground">Open</button>
+          )}
+        </div>
+      )}
       <header>
         <h1 className="text-2xl font-semibold flex items-center gap-2"><Icon className="w-6 h-6 text-primary" /> {title}</h1>
         <p className="text-sm text-muted-foreground">
