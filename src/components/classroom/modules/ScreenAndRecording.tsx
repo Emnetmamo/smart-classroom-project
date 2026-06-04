@@ -507,6 +507,16 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
                 <UserCheck className="w-3.5 h-3.5" /> {currentTeacher} verified
               </span>
             )}
+            {teacherPresent && teacherLateness && (
+              <span className={`text-xs inline-flex items-center gap-1.5 px-2 py-1 rounded-full border font-medium ${
+                teacherLateness === "on-time"
+                  ? "bg-[color:var(--success)]/20 text-[color:var(--success)] border-[color:var(--success)]/50"
+                  : teacherLateness === "warning"
+                  ? "bg-[color:var(--warning)]/25 text-[color:var(--warning)] border-[color:var(--warning)]/60"
+                  : "bg-destructive/25 text-destructive-foreground border-destructive/60"}`}>
+                Arrival: {teacherLateness === "on-time" ? "On time" : teacherLateness === "warning" ? "Warning (10 min late)" : "Late"}
+              </span>
+            )}
             {!liveStream && teacherPresent && (
               <button onClick={startManualShare} className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm inline-flex items-center gap-2">
                 <MonitorPlay className="w-4 h-4" /> {hasMaterial ? "Override · share my screen" : "Share my screen"}
