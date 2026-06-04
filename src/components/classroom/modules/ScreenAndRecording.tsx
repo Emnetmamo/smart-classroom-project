@@ -212,6 +212,104 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
     return () => clearInterval(t);
   }, [devices.recording, hasMaterial, teacherPresent]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function buildRecordingName() {
+    const cleanCourse = (schedule.course || "Lecture").replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Lecture";
+    return `${cleanCourse}_${new Date().toISOString().slice(0, 10)}.webm`;
+  }
+
+  function drawContained(ctx: CanvasRenderingContext2D, source: CanvasImageSource, sourceW: number, sourceH: number) {
+    ctx.fillStyle = "#0b0b0b";
+    ctx.fillRect(0, 0, RECORDING_WIDTH, RECORDING_HEIGHT);
+    if (!sourceW || !sourceH) return;
+    const scale = Math.min(RECORDING_WIDTH / sourceW, RECORDING_HEIGHT / sourceH);
+    const width = sourceW * scale;
+    const height = sourceH * scale;
+    const x = (RECORDING_WIDTH - width) / 2;
+    const y = (RECORDING_HEIGHT - height) / 2;
+    ctx.drawImage(source, x, y, width, height);
+  }
+
+  function makeCanvasRecorderStream(source: HTMLCanvasElement, audio?: MediaStream | null) {
+    stopRecordingCanvasLoop();
+    const recordingCanvas = document.createElement("canvas");
+    recordingCanvas.width = RECORDING_WIDTH;
+    recordingCanvas.height = RECORDING_HEIGHT;
+    const ctx = recordingCanvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create recording canvas");
+    const draw = () => drawContained(ctx, source, source.width, source.height);
+    draw();
+    recordingDrawTimerRef.current = window.setInterval(draw, 1000 / RECORDING_FPS);
+    recordingCanvasRef.current = recordingCanvas;
+    const stream = recordingCanvas.captureStream(RECORDING_FPS);
+    audio?.getAudioTracks().forEach((track) => stream.addTrack(track));
+    return stream;
+  }
+
+  function makeVideoRecorderStream(source: HTMLVideoElement, audio?: MediaStream | null) {
+    stopRecordingCanvasLoop();
+    const recordingCanvas = document.createElement("canvas");
+    recordingCanvas.width = RECORDING_WIDTH;
+    recordingCanvas.height = RECORDING_HEIGHT;
+    const ctx = recordingCanvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create recording canvas");
+    const draw = () => drawContained(ctx, source, source.videoWidth || RECORDING_WIDTH, source.videoHeight || RECORDING_HEIGHT);
+    draw();
+    recordingDrawTimerRef.current = window.setInterval(draw, 1000 / RECORDING_FPS);
+    recordingCanvasRef.current = recordingCanvas;
+    const stream = recordingCanvas.captureStream(RECORDING_FPS);
+    audio?.getAudioTracks().forEach((track) => stream.addTrack(track));
+    return stream;
+  }
+
+  function mixAudioStreams(streams: Array<MediaStream | null>) {
+    const tracks = streams.flatMap((stream) => stream?.getAudioTracks() ?? []);
+    if (!tracks.length) return null;
+    if (tracks.length === 1) return new MediaStream([tracks[0]]);
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return new MediaStream(tracks);
+    const ctx = new AudioContextCtor();
+    const destination = ctx.createMediaStreamDestination();
+    tracks.forEach((track) => ctx.createMediaStreamSource(new MediaStream([track])).connect(destination));
+    audioContextsRef.current.push(ctx);
+    return destination.stream;
+  }
+
+  function stopRecordingCanvasLoop() {
+    if (recordingDrawTimerRef.current) {
+      clearInterval(recordingDrawTimerRef.current);
+      recordingDrawTimerRef.current = null;
+    }
+    recordingCanvasRef.current = null;
+  }
+
+  async function saveRecordingBlob(raw: Blob, durationMs: number, snap: { sessionId: string; courseId: string; title: string }) {
+    if (raw.size < 1024) {
+      log("Recording", "Recording too short to save", "warn");
+      return;
+    }
+    const blob = await fixWebmDuration(raw, Math.max(1000, durationMs), { logger: false }).catch(() => raw);
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    const url = URL.createObjectURL(blob);
+    const fileName = buildRecordingName();
+    recordedBlobRef.current = blob;
+    setRecordedUrl(url);
+    setRecordedFileName(fileName);
+    addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: Math.round(durationMs / 1000), url });
+    log("Recording", `Saved ${fileName} · ${(blob.size / 1024 / 1024).toFixed(1)} MB — preview and download use the same audio/video file`, "success");
+  }
+
+  function downloadRecording() {
+    if (!recordedBlobRef.current) return;
+    const blobUrl = URL.createObjectURL(recordedBlobRef.current);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = recordedFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  }
+
   // Auto-start canvas recording when preloaded material is rendering (no manual screen share).
   useEffect(() => {
     if (!teacherPresent || !autoMode || !hasMaterial || pdfStatus !== "ready") return;
