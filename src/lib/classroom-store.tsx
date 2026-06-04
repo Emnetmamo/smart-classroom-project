@@ -18,6 +18,7 @@ export type Student = {
   rfid: string;
   avatar?: string;
   present: boolean;
+  active?: boolean;
   checkInMethod?: "face" | "rfid" | null;
   checkInTime?: string;
   lateness?: Lateness;
@@ -32,6 +33,27 @@ export type Teacher = {
   phone: string;
   department: string;
   avatar?: string;
+  active?: boolean;
+};
+
+export type AdminUser = {
+  id: string;
+  username: string;
+  name: string;
+  role: "coordinator" | "admin";
+  active: boolean;
+};
+
+export type AuditEntry = {
+  id: string;
+  time: string;
+  actorRole: "instructor" | "student" | "coordinator" | "admin" | "system";
+  actorName: string;
+  action: string;     // e.g. "login.success", "login.fail", "user.deactivate"
+  target?: string;    // affected entity
+  ip?: string;
+  userAgent?: string;
+  level: "info" | "warn" | "error" | "success";
 };
 
 export type Classroom = {
