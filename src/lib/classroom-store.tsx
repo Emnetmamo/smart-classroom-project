@@ -213,7 +213,7 @@ type Ctx = {
   // attendance
   checkIn: (id: string, method: "face" | "rfid") => void;
   multiFaceDetect: (ids: string[]) => void;
-  checkInTeacher: (teacherId: string) => void;
+  checkInTeacher: (teacherId: string, latenessOverride?: Lateness) => void;
   checkOutTeacher: () => void;
   checkOutAll: () => void;
   setAttention: (id: string, v: number) => void;
@@ -450,7 +450,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     ids.forEach((id) => checkIn(id, "face"));
   };
 
-  const checkInTeacher: Ctx["checkInTeacher"] = (teacherId) => {
+  const checkInTeacher: Ctx["checkInTeacher"] = (teacherId, latenessOverride) => {
     const t = teachers.find((x) => x.id === teacherId);
     if (!t) return;
 
@@ -515,7 +515,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     const course = courses.find((c) => c.instructorId === teacherId);
     const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
     const sessStart = sess?.start ?? simNow.toTimeString().slice(0, 5);
-    const lateness = computeLateness(sessStart, simNow);
+    const lateness = latenessOverride ?? computeLateness(sessStart, simNow);
     setTeacherAttendance((prev) => [{
       id: crypto.randomUUID(),
       teacherId: t.id,

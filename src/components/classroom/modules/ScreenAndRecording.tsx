@@ -54,6 +54,9 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const [camOn, setCamOn] = useState(false);
   const [modelState, setModelState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [arrivalMode, setArrivalMode] = useState<"on-time" | "warning" | "late">("on-time");
+  const arrivalModeRef = useRef(arrivalMode);
+  useEffect(() => { arrivalModeRef.current = arrivalMode; }, [arrivalMode]);
   const knownTeachers = teachers.filter((t) => t.avatar);
 
   const autoMode = devices.sharing && !liveStream;
@@ -278,7 +281,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
           const t = teachers.find((x) => x.id === m.label);
           if (t) {
             log("Face Recognition", `Instructor confirmed: ${t.name} (${Math.round((1 - m.distance) * 100)}% match)`, "success");
-            checkInTeacher(t.id);
+            checkInTeacher(t.id, arrivalModeRef.current);
           }
         }
       }
@@ -410,13 +413,32 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
             ? (modelState === "loading" ? "Loading models…" : camOn ? "Scanning…" : "Camera off")
             : autoMode && hasMaterial ? "Auto · preloaded material" : liveStream ? "Live screen share" : "Idle"}
           action={showCam ? (
-            <button onClick={camOn ? stopCamera : startCamera} disabled={modelState === "loading"}
-              className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1.5 disabled:opacity-50">
-              {modelState === "loading" ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading</>
-                : camOn ? <><CameraOff className="w-3.5 h-3.5" /> Stop</>
-                : <><Camera className="w-3.5 h-3.5" /> Start camera</>}
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-md border border-border overflow-hidden text-[11px]">
+                {(["on-time", "warning", "late"] as const).map((m) => {
+                  const active = arrivalMode === m;
+                  const label = m === "on-time" ? "On time" : m === "warning" ? "Warning" : "Late";
+                  const tone = m === "on-time"
+                    ? (active ? "bg-[color:var(--success)] text-white" : "text-[color:var(--success)] hover:bg-[color:var(--success)]/10")
+                    : m === "warning"
+                    ? (active ? "bg-[color:var(--warning)] text-white" : "text-[color:var(--warning)] hover:bg-[color:var(--warning)]/10")
+                    : (active ? "bg-destructive text-white" : "text-destructive hover:bg-destructive/10");
+                  return (
+                    <button key={m} type="button" onClick={() => setArrivalMode(m)} className={`px-2 py-1 font-medium ${tone}`} title={`Mark next verification as ${label}`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={camOn ? stopCamera : startCamera} disabled={modelState === "loading"}
+                className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1.5 disabled:opacity-50">
+                {modelState === "loading" ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading</>
+                  : camOn ? <><CameraOff className="w-3.5 h-3.5" /> Stop</>
+                  : <><Camera className="w-3.5 h-3.5" /> Start camera</>}
+              </button>
+            </div>
           ) : undefined}>
+
 
           <div className="aspect-video bg-black rounded-lg overflow-hidden border border-border relative">
             {/* --- VERIFICATION CAMERA --- */}
