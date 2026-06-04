@@ -45,10 +45,6 @@ export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
             );
           })}
         </div>
-        <div className="mt-10 text-center text-xs text-muted-foreground leading-relaxed">
-          Demo credentials · Instructors: <code>ayalew / Teacher@1234</code> · Students: <code>abera / Abera@1234</code><br />
-          Coordinator: <code>coordinator / Coord@1234</code> · General Admin: <code>admin / Admin@1234</code>
-        </div>
       </div>
     </div>
   );
