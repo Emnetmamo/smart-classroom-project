@@ -572,7 +572,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
               </button>
             )}
             {recordedUrl && (
-              <a href={recordedUrl} download={`${schedule.course.replace(/\s/g, "_")}.webm`}
+              <a href={recordedUrl} download={`${schedule.course.replace(/[^a-z0-9]+/gi, "_")}_${new Date().toISOString().slice(0, 10)}.webm`}
                 className="px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm inline-flex items-center gap-2">
                 <Download className="w-4 h-4" /> Download recording
               </a>
