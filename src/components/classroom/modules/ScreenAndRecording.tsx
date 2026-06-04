@@ -26,9 +26,11 @@ const STABLE_HITS = 2;
 // Chrome's built-in PDF viewer entirely, so it cannot show "blocked by Chrome".
 export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack }: { mode: "screen" | "record"; backgroundActive?: boolean; onJumpBack?: () => void }) {
   const {
-    setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher, currentTeacherId,
+    setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
     checkInTeacher, checkOutTeacher, addRecording, teacherAttendance,
   } = useClassroom();
+  const openTeacherRecord = teacherAttendance.find((r) => !r.checkOutTime);
+  const teacherLateness = openTeacherRecord?.lateness;
 
   // --- screen / recording refs ---
   const videoRef = useRef<HTMLVideoElement>(null);         // screen share preview
