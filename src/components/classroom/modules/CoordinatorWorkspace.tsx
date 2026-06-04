@@ -53,6 +53,7 @@ export function CoordinatorWorkspace() {
       {tab === "courses" && <CoursesTab />}
       {tab === "schedule-add" && <ScheduleAddTab />}
       {tab === "schedule-view" && <ScheduleViewTab />}
+      {tab === "materials" && <MaterialsTab />}
       {tab === "teacher-attendance" && <TeacherAttendanceTab />}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "export" && <ExportTab />}
