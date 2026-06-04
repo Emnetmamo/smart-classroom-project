@@ -157,6 +157,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
         const task = page.render({ canvas, canvasContext: ctx, viewport });
         renderTaskRef.current = task;
         await task.promise;
+        if (!cancelled) setSlideRenderedTick((n) => n + 1);
       } catch (error) {
         if (!cancelled && !(error instanceof Error && error.name === "RenderingCancelledException")) {
           setPdfStatus("error");
@@ -199,8 +200,11 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   useEffect(() => { lastSlideMoveRef.current = Date.now(); }, [pdfPage]);
   useEffect(() => {
     if (!devices.recording || !hasMaterial || !teacherPresent) return;
+    lastSlideMoveRef.current = Date.now();
     const t = setInterval(() => {
-      if (Date.now() - lastSlideMoveRef.current > 60_000) {
+      const recordingAgeMs = Date.now() - recordingStartRef.current;
+      const inactiveMs = Date.now() - lastSlideMoveRef.current;
+      if (recordingAgeMs >= SLIDE_INACTIVITY_LIMIT_MS && inactiveMs >= SLIDE_INACTIVITY_LIMIT_MS) {
         log("Recording", "No slide movement for 1 min — auto-ending session", "warn");
         checkOutTeacher();
       }
