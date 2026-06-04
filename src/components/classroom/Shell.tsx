@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, ScanFace, CreditCard, Lightbulb, Thermometer, Wind,
-  Eye, MonitorPlay, Video, ShieldCheck, Activity, LogOut, Clock, FastForward, Rewind,
+  Eye, MonitorPlay, Video, Activity, LogOut, Clock, FastForward, Rewind,
 } from "lucide-react";
 import { useClassroom } from "@/lib/classroom-store";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ const MODULES = [
   { id: "attention", label: "Attention Monitor", icon: Eye },
   { id: "screen",    label: "Screen Sharing", icon: MonitorPlay },
   { id: "record",    label: "Lecture Recording", icon: Video },
-  { id: "admin",     label: "Admin · Coordinator", icon: ShieldCheck },
 ] as const;
 
 export type ModuleId = (typeof MODULES)[number]["id"];
