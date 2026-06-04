@@ -14,6 +14,10 @@ import fixWebmDuration from "fix-webm-duration";
 
 const MATCH_THRESHOLD = 0.5;
 const STABLE_HITS = 2;
+const SLIDE_INACTIVITY_LIMIT_MS = 60_000;
+const RECORDING_WIDTH = 1280;
+const RECORDING_HEIGHT = 720;
+const RECORDING_FPS = 30;
 
 // Smart Screen Sharing + Lecture Recording.
 //
@@ -44,9 +48,14 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
   const recordingStartRef = useRef<number>(0);
+  const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recordingDrawTimerRef = useRef<number | null>(null);
+  const audioContextsRef = useRef<AudioContext[]>([]);
+  const recordedBlobRef = useRef<Blob | null>(null);
 
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [recordedFileName, setRecordedFileName] = useState("lecture-recording.webm");
   const [elapsed, setElapsed] = useState(0);
 
   // --- face verification state ---
@@ -68,6 +77,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfPages, setPdfPages] = useState(0);
   const [pdfRenderTick, setPdfRenderTick] = useState(0);
+  const [slideRenderedTick, setSlideRenderedTick] = useState(0);
 
   useEffect(() => {
     if (!materialUrl || !hasMaterial) {
