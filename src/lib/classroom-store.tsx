@@ -347,6 +347,15 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [teacherAttendance, setTeacherAttendance] = useState<TeacherAttendance[]>([]);
   const [studentAttendance, setStudentAttendance] = useState<StudentAttendanceRecord[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([
+    { id: "U-COORD", username: "coordinator", name: "Class Coordinator", role: "coordinator", active: true },
+    { id: "U-ADMIN", username: "admin", name: "General Admin", role: "admin", active: true },
+  ]);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const clientIpRef = useRef<string>("—");
+  useEffect(() => {
+    fetch("https://api.ipify.org?format=json").then((r) => r.json()).then((j) => { clientIpRef.current = j.ip ?? "—"; }).catch(() => {});
+  }, []);
   const [teacherPresent, setTeacherPresent] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null);
