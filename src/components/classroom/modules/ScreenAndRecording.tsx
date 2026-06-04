@@ -10,6 +10,7 @@ import { buildMatcher, detectAndMatch, type KnownPerson, type LiveMatch } from "
 import type { FaceMatcher } from "@vladmandic/face-api";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import fixWebmDuration from "fix-webm-duration";
 
 const MATCH_THRESHOLD = 0.5;
 const STABLE_HITS = 2;
@@ -42,6 +43,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
+  const recordingStartRef = useRef<number>(0);
 
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
@@ -217,26 +219,29 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
         const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
           ? "video/webm;codecs=vp9,opus"
           : "video/webm";
-        const rec = new MediaRecorder(stream, { mimeType: mime });
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
         const snap = {
           sessionId: schedule.sessionId ?? "live",
           courseId: schedule.courseId ?? "live",
           title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
         };
         rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
-        rec.onstop = () => {
-          const blob = new Blob(chunksRef.current, { type: "video/webm" });
-          if (blob.size < 1024) {
+        rec.onstop = async () => {
+          const raw = new Blob(chunksRef.current, { type: "video/webm" });
+          if (raw.size < 1024) {
             log("Recording", "Recording too short to save", "warn");
             stream.getTracks().forEach((t) => t.stop());
             return;
           }
+          const durationMs = Date.now() - recordingStartRef.current;
+          const blob = await fixWebmDuration(raw, durationMs, { logger: false }).catch(() => raw);
           const url = URL.createObjectURL(blob);
           setRecordedUrl(url);
-          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: elapsed, url });
+          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: Math.round(durationMs / 1000), url });
           log("Recording", `Saved preloaded-slide recording · ${(blob.size / 1024 / 1024).toFixed(1)} MB — available to enrolled students`, "success");
           stream.getTracks().forEach((t) => t.stop());
         };
+        recordingStartRef.current = Date.now();
         rec.start(1000);
         recRef.current = rec;
         log("Recording", "Auto-recording of preloaded slides started", "success");
@@ -336,10 +341,12 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
       const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
         ? "video/webm;codecs=vp9,opus"
         : "video/webm";
-      const rec = new MediaRecorder(combined, { mimeType: mime });
+      const rec = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 4_000_000, audioBitsPerSecond: 128_000 });
       rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      rec.onstop = async () => {
+        const raw = new Blob(chunksRef.current, { type: "video/webm" });
+        const durationMs = Date.now() - recordingStartRef.current;
+        const blob = await fixWebmDuration(raw, durationMs, { logger: false }).catch(() => raw);
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
         addRecording({
@@ -347,11 +354,12 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
           courseId: schedule.courseId ?? "live",
           title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString().slice(0, 10),
-          durationSec: elapsed,
+          durationSec: Math.round(durationMs / 1000),
           url,
         });
         log("Recording", `Saved ${(blob.size / 1024 / 1024).toFixed(1)} MB with audio · students notified`, "success");
       };
+      recordingStartRef.current = Date.now();
       rec.start(1000);
       recRef.current = rec;
 
@@ -564,7 +572,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
               </button>
             )}
             {recordedUrl && (
-              <a href={recordedUrl} download={`${schedule.course.replace(/\s/g, "_")}.webm`}
+              <a href={recordedUrl} download={`${schedule.course.replace(/[^a-z0-9]+/gi, "_")}_${new Date().toISOString().slice(0, 10)}.webm`}
                 className="px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm inline-flex items-center gap-2">
                 <Download className="w-4 h-4" /> Download recording
               </a>

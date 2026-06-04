@@ -43,20 +43,17 @@ export function Login({ role, onSuccess, onBack }: {
           <label className="block">
             <div className="text-xs text-muted-foreground mb-1">Username</div>
             <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus
-              placeholder={hint.user}
               className="w-full px-3 py-2 rounded-md bg-input border border-border outline-none focus:border-primary text-sm" />
           </label>
           <label className="block">
             <div className="text-xs text-muted-foreground mb-1">Password</div>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder={hint.pass}
               className="w-full px-3 py-2 rounded-md bg-input border border-border outline-none focus:border-primary text-sm" />
           </label>
           {err && <div className="text-xs text-destructive-foreground bg-destructive/20 border border-destructive/40 px-3 py-2 rounded">{err}</div>}
           <button type="submit" className="w-full px-4 py-2.5 rounded-md bg-primary text-primary-foreground inline-flex items-center justify-center gap-2">
             <LogIn className="w-4 h-4" /> Sign in
           </button>
-          <div className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">{hint.help}</div>
         </form>
       </div>
     </div>
