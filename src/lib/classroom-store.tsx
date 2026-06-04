@@ -213,7 +213,7 @@ type Ctx = {
   // attendance
   checkIn: (id: string, method: "face" | "rfid") => void;
   multiFaceDetect: (ids: string[]) => void;
-  checkInTeacher: (teacherId: string) => void;
+  checkInTeacher: (teacherId: string, latenessOverride?: Lateness) => void;
   checkOutTeacher: () => void;
   checkOutAll: () => void;
   setAttention: (id: string, v: number) => void;
