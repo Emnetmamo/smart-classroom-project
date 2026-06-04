@@ -82,12 +82,10 @@ function AdminRolePicker({ onPick, onBack }: { onPick: (r: "coordinator" | "admi
           <button onClick={() => onPick("coordinator")} className="text-left rounded-2xl p-6 border border-border bg-card/60 hover:border-primary/50">
             <div className="text-lg font-semibold">Class Coordinator</div>
             <div className="text-sm text-muted-foreground mt-1">Manage instructors, students, courses, schedule and preload slides for teachers.</div>
-            <div className="text-xs text-muted-foreground mt-3"><code>coordinator / Coord@1234</code></div>
           </button>
           <button onClick={() => onPick("admin")} className="text-left rounded-2xl p-6 border border-border bg-card/60 hover:border-primary/50">
             <div className="text-lg font-semibold">General Admin</div>
             <div className="text-sm text-muted-foreground mt-1">Monitoring, devices, security, audit logs, backups, reports and user activation.</div>
-            <div className="text-xs text-muted-foreground mt-3"><code>admin / Admin@1234</code></div>
           </button>
         </div>
       </div>
