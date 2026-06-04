@@ -489,13 +489,14 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   }
 
   function stopMediaTracks() {
-    recRef.current?.stop();
+    if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
     recRef.current = null;
     const v = videoRef.current;
     const tracks = (v?.srcObject as MediaStream | null)?.getTracks() ?? [];
     tracks.forEach((t) => t.stop());
     extraTracksRef.current.forEach((t) => t.stop());
     extraTracksRef.current = [];
+    stopRecordingCanvasLoop();
     if (v) v.srcObject = null;
     setLiveStream(false);
     setDevice("sharing", false);
@@ -691,10 +692,10 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
               </button>
             )}
             {recordedUrl && (
-              <a href={recordedUrl} download={`${schedule.course.replace(/[^a-z0-9]+/gi, "_")}_${new Date().toISOString().slice(0, 10)}.webm`}
+              <button onClick={downloadRecording}
                 className="px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm inline-flex items-center gap-2">
                 <Download className="w-4 h-4" /> Download recording
-              </a>
+              </button>
             )}
           </div>
         </Panel>
