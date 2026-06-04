@@ -643,3 +643,106 @@ function TeacherAttendanceTab() {
   );
 }
 
+
+// -------- Lecture materials (preload slides for a session) --------
+function MaterialsTab() {
+  const { sessions, courses, teachers, classrooms, setSessionMaterial, log } = useClassroom();
+  const sorted = useMemo(
+    () => [...sessions].sort((a, b) => a.day - b.day || a.start.localeCompare(b.start)),
+    [sessions],
+  );
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function onFile(sessionId: string, file: File) {
+    if (file.type !== "application/pdf") {
+      log("Coordinator", `Material must be a PDF (got ${file.type || "unknown"})`, "error");
+      return;
+    }
+    setPendingId(sessionId);
+    try {
+      const dataUrl: string = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result as string);
+        r.onerror = () => rej(r.error);
+        r.readAsDataURL(file);
+      });
+      const title = file.name.replace(/\.pdf$/i, "");
+      setSessionMaterial(sessionId, { title, type: "slides", preloaded: true, url: dataUrl });
+      log("Coordinator", `Preloaded slides for session ${sessionId}: ${title}`, "success");
+    } catch {
+      log("Coordinator", "Could not read PDF file", "error");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  return (
+    <Panel
+      title="Preload lecture materials"
+      subtitle="Upload a PDF deck for any scheduled session. The verified instructor will see it auto-load in Screen Sharing."
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted-foreground border-b border-border">
+              <th className="py-2">Day</th><th>Time</th><th>Course</th><th>Instructor</th><th>Room</th><th>Material</th><th className="text-right">Upload</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((s) => {
+              const c = courses.find((x) => x.id === s.courseId);
+              const t = teachers.find((x) => x.id === s.instructorId);
+              const r = classrooms.find((x) => x.id === s.classroomId);
+              const busy = pendingId === s.id;
+              return (
+                <tr key={s.id} className="border-b border-border/40">
+                  <td className="py-2 text-xs">{DAY_LABELS[s.day]}</td>
+                  <td className="font-mono text-xs">{s.start}–{s.end}</td>
+                  <td className="text-xs">{c?.code} · {c?.name}</td>
+                  <td className="text-xs">{t?.name}</td>
+                  <td className="text-xs">{r?.name}</td>
+                  <td className="text-xs">
+                    {s.material?.preloaded ? (
+                      <span className="inline-flex items-center gap-1.5 text-[color:var(--success)]">
+                        <FileText className="w-3.5 h-3.5" /> {s.material.title}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">— none —</span>
+                    )}
+                  </td>
+                  <td className="text-right whitespace-nowrap">
+                    <label className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-xs cursor-pointer ${busy ? "opacity-50" : "border-border hover:bg-secondary"}`}>
+                      <Upload className="w-3 h-3" />
+                      {busy ? "Uploading…" : s.material?.preloaded ? "Replace PDF" : "Upload PDF"}
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) onFile(s.id, f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {s.material?.preloaded && (
+                      <button
+                        onClick={() => { setSessionMaterial(s.id, undefined); log("Coordinator", `Removed material from session ${s.id}`, "warn"); }}
+                        className="ml-1 px-2 py-1 rounded border border-destructive/40 text-destructive text-xs hover:bg-destructive/10"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground mt-3">
+        PDFs are stored in-memory for this demo session. The instructor's Screen Sharing panel auto-renders the deck in a secure canvas — no Chrome PDF viewer involved.
+      </p>
+    </Panel>
+  );
+}
