@@ -43,6 +43,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void; promise: Promise<unknown> } | null>(null);
+  const recordingStartRef = useRef<number>(0);
 
   const [liveStream, setLiveStream] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
