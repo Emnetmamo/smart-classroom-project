@@ -686,17 +686,31 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   }, [students, teacherPresent, currentTeacherId, currentTeacher, devices.recording]);
 
 
+  const addAudit: Ctx["addAudit"] = (e) => setAudit((prev) => [
+    { id: crypto.randomUUID(), time: new Date().toLocaleString(), ip: clientIpRef.current, userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "—", ...e },
+    ...prev,
+  ].slice(0, 500));
+
   // CRUD
-  const upsertStudent = (s: Student) => setStudents((prev) => prev.some((x) => x.id === s.id) ? prev.map((x) => x.id === s.id ? s : x) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
+  const upsertStudent = (s: Student) => setStudents((prev) => prev.some((x) => x.id === s.id) ? prev.map((x) => x.id === s.id ? s : x) : [...prev, { active: true, ...s }].sort((a, b) => a.name.localeCompare(b.name)));
   const deleteStudent = (id: string) => setStudents((prev) => prev.filter((x) => x.id !== id));
-  const upsertTeacher = (t: Teacher) => setTeachers((prev) => prev.some((x) => x.id === t.id) ? prev.map((x) => x.id === t.id ? t : x) : [...prev, t]);
+  const setStudentActive = (id: string, active: boolean) => setStudents((prev) => prev.map((x) => x.id === id ? { ...x, active } : x));
+  const upsertTeacher = (t: Teacher) => setTeachers((prev) => prev.some((x) => x.id === t.id) ? prev.map((x) => x.id === t.id ? t : x) : [...prev, { active: true, ...t }]);
   const deleteTeacher = (id: string) => setTeachers((prev) => prev.filter((x) => x.id !== id));
+  const setTeacherActive = (id: string, active: boolean) => setTeachers((prev) => prev.map((x) => x.id === id ? { ...x, active } : x));
   const upsertClassroom = (c: Classroom) => setClassrooms((prev) => prev.some((x) => x.id === c.id) ? prev.map((x) => x.id === c.id ? c : x) : [...prev, c]);
   const deleteClassroom = (id: string) => setClassrooms((prev) => prev.filter((x) => x.id !== id));
   const upsertCourse = (c: Course) => setCourses((prev) => prev.some((x) => x.id === c.id) ? prev.map((x) => x.id === c.id ? c : x) : [...prev, c]);
   const deleteCourse = (id: string) => setCourses((prev) => prev.filter((x) => x.id !== id));
   const upsertSession = (s: SessionRow) => setSessions((prev) => prev.some((x) => x.id === s.id) ? prev.map((x) => x.id === s.id ? s : x) : [...prev, s]);
   const deleteSession = (id: string) => setSessions((prev) => prev.filter((x) => x.id !== id));
+  const setSessionMaterial: Ctx["setSessionMaterial"] = (sessionId, material) =>
+    setSessions((prev) => prev.map((x) => x.id === sessionId ? { ...x, material } : x));
+
+  const upsertAdminUser: Ctx["upsertAdminUser"] = (u) =>
+    setAdminUsers((prev) => prev.some((x) => x.id === u.id) ? prev.map((x) => x.id === u.id ? u : x) : [...prev, u]);
+  const setAdminActive = (id: string, active: boolean) => setAdminUsers((prev) => prev.map((x) => x.id === id ? { ...x, active } : x));
+  const deleteAdminUser = (id: string) => setAdminUsers((prev) => prev.filter((x) => x.id !== id));
 
   const sendNotification: Ctx["sendNotification"] = (n) =>
     setNotifications((prev) => [{ id: crypto.randomUUID(), time: new Date().toLocaleString(), ...n }, ...prev]);
@@ -708,31 +722,52 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   // Auth
   const login: Ctx["login"] = (role, username, password) => {
     const u = username.trim().toLowerCase();
+    const audit = (ok: boolean, name: string, reason?: string) => addAudit({
+      actorRole: role, actorName: name,
+      action: ok ? "login.success" : "login.fail",
+      target: reason, level: ok ? "success" : "warn",
+    });
     if (role === "instructor") {
       const t = teachers.find((x) => x.username.toLowerCase() === u);
-      if (!t) return { ok: false, error: "Unknown instructor username" };
-      if (password !== "Teacher@1234") return { ok: false, error: "Invalid password" };
-      return { ok: true, id: t.id };
+      if (!t) { audit(false, u, "unknown user"); return { ok: false, error: "Unknown instructor username" }; }
+      if (t.active === false) { audit(false, t.name, "deactivated"); return { ok: false, error: "Account deactivated" }; }
+      if (password !== "Teacher@1234") { audit(false, t.name, "bad password"); return { ok: false, error: "Invalid password" }; }
+      audit(true, t.name);
+      return { ok: true, id: t.id, name: t.name };
     }
-    const s = students.find((x) => x.name.split(" ")[0].toLowerCase() === u);
-    if (!s) return { ok: false, error: "Unknown student username (use first name lowercase)" };
-    const expected = `${s.name.split(" ")[0]}@1234`;
-    if (password !== expected) return { ok: false, error: `Invalid password (hint: ${s.name.split(" ")[0]}@1234)` };
-    return { ok: true, id: s.id };
+    if (role === "student") {
+      const s = students.find((x) => x.name.split(" ")[0].toLowerCase() === u);
+      if (!s) { audit(false, u, "unknown user"); return { ok: false, error: "Unknown student username (use first name lowercase)" }; }
+      if (s.active === false) { audit(false, s.name, "deactivated"); return { ok: false, error: "Account deactivated" }; }
+      const expected = `${s.name.split(" ")[0]}@1234`;
+      if (password !== expected) { audit(false, s.name, "bad password"); return { ok: false, error: `Invalid password (hint: ${s.name.split(" ")[0]}@1234)` }; }
+      audit(true, s.name);
+      return { ok: true, id: s.id, name: s.name };
+    }
+    // coordinator / admin
+    const a = adminUsers.find((x) => x.username.toLowerCase() === u && x.role === role);
+    if (!a) { audit(false, u, "unknown user"); return { ok: false, error: `Unknown ${role} username` }; }
+    if (!a.active) { audit(false, a.name, "deactivated"); return { ok: false, error: "Account deactivated" }; }
+    const expected = role === "coordinator" ? "Coord@1234" : "Admin@1234";
+    if (password !== expected) { audit(false, a.name, "bad password"); return { ok: false, error: "Invalid password" }; }
+    audit(true, a.name);
+    return { ok: true, id: a.id, name: a.name };
   };
 
   return (
     <ClassroomCtx.Provider value={{
       students, teachers, classrooms, courses, sessions, recordings, notifications, logs,
-      teacherAttendance, studentAttendance,
+      teacherAttendance, studentAttendance, adminUsers, audit,
       teacherPresent, currentTeacher, sensors, devices, schedule, scheduleMode, setScheduleMode,
       simNow, setSimNow, advanceSim,
       setSensor, setDevice,
       checkIn, multiFaceDetect, checkInTeacher, checkOutTeacher, checkOutAll, setAttention,
-      log, setSchedule,
-      upsertStudent, deleteStudent, upsertTeacher, deleteTeacher,
+      log, addAudit, setSchedule,
+      upsertStudent, deleteStudent, setStudentActive,
+      upsertTeacher, deleteTeacher, setTeacherActive,
       upsertClassroom, deleteClassroom, upsertCourse, deleteCourse,
-      upsertSession, deleteSession,
+      upsertSession, deleteSession, setSessionMaterial,
+      upsertAdminUser, setAdminActive, deleteAdminUser,
       sendNotification, markNotificationRead, addRecording, login,
     }}>
       {children}
