@@ -24,10 +24,10 @@ const STABLE_HITS = 2;
 //
 // Preloaded PDFs are rendered page-by-page onto a canvas with PDF.js. This avoids
 // Chrome's built-in PDF viewer entirely, so it cannot show "blocked by Chrome".
-export function ScreenAndRecording({ mode }: { mode: "screen" | "record" }) {
+export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack }: { mode: "screen" | "record"; backgroundActive?: boolean; onJumpBack?: () => void }) {
   const {
-    setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher,
-    checkInTeacher, checkOutTeacher, addRecording,
+    setDevice, log, schedule, devices, teachers, teacherPresent, currentTeacher, currentTeacherId,
+    checkInTeacher, checkOutTeacher, addRecording, teacherAttendance,
   } = useClassroom();
 
   // --- screen / recording refs ---
