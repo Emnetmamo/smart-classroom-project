@@ -515,7 +515,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     const course = courses.find((c) => c.instructorId === teacherId);
     const sess = sessions.find((s) => s.instructorId === teacherId && s.material) ?? sessions.find((s) => s.instructorId === teacherId);
     const sessStart = sess?.start ?? simNow.toTimeString().slice(0, 5);
-    const lateness = computeLateness(sessStart, simNow);
+    const lateness = latenessOverride ?? computeLateness(sessStart, simNow);
     setTeacherAttendance((prev) => [{
       id: crypto.randomUUID(),
       teacherId: t.id,
