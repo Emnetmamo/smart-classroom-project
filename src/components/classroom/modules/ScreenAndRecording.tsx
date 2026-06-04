@@ -219,26 +219,29 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
         const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
           ? "video/webm;codecs=vp9,opus"
           : "video/webm";
-        const rec = new MediaRecorder(stream, { mimeType: mime });
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
         const snap = {
           sessionId: schedule.sessionId ?? "live",
           courseId: schedule.courseId ?? "live",
           title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
         };
         rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
-        rec.onstop = () => {
-          const blob = new Blob(chunksRef.current, { type: "video/webm" });
-          if (blob.size < 1024) {
+        rec.onstop = async () => {
+          const raw = new Blob(chunksRef.current, { type: "video/webm" });
+          if (raw.size < 1024) {
             log("Recording", "Recording too short to save", "warn");
             stream.getTracks().forEach((t) => t.stop());
             return;
           }
+          const durationMs = Date.now() - recordingStartRef.current;
+          const blob = await fixWebmDuration(raw, durationMs, { logger: false }).catch(() => raw);
           const url = URL.createObjectURL(blob);
           setRecordedUrl(url);
-          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: elapsed, url });
+          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: Math.round(durationMs / 1000), url });
           log("Recording", `Saved preloaded-slide recording · ${(blob.size / 1024 / 1024).toFixed(1)} MB — available to enrolled students`, "success");
           stream.getTracks().forEach((t) => t.stop());
         };
+        recordingStartRef.current = Date.now();
         rec.start(1000);
         recRef.current = rec;
         log("Recording", "Auto-recording of preloaded slides started", "success");
