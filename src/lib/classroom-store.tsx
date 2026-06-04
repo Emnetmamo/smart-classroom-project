@@ -671,6 +671,9 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
   const endedSessionRef = useRef<string | null>(null);
   useEffect(() => {
     if (scheduleMode !== "schedule" || !teacherPresent || !schedule.active || !schedule.sessionId) return;
+    // Preloaded-slide recordings use the recorder's slide-inactivity timer so
+    // a session never ends abruptly before the requested 1-minute grace window.
+    if (devices.recording && schedule.material?.preloaded) return;
     const [eh, em] = schedule.end.split(":").map(Number);
     const nowMin = simNow.getHours() * 60 + simNow.getMinutes();
     if (nowMin >= eh * 60 + em && endedSessionRef.current !== schedule.sessionId) {
@@ -678,7 +681,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
       log("Schedule", `Course ${schedule.course} reached its end time — finalising attendance`, "info");
       checkOutTeacher();
     }
-  }, [simNow, schedule.sessionId, schedule.end, schedule.active, scheduleMode, teacherPresent]);
+  }, [simNow, schedule.sessionId, schedule.end, schedule.active, scheduleMode, teacherPresent, devices.recording, schedule.material?.preloaded]);
 
   // Notify the active instructor whenever a student's attention drops below 50%
   // (especially important while the lecture is being recorded so they can react).
