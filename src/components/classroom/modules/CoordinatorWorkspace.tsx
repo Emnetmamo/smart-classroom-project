@@ -3,10 +3,10 @@ import { useClassroom, DAY_LABELS, type Student, type Teacher, type Classroom, t
 import { Panel, Stat } from "../ui";
 import {
   LayoutDashboard, Users, GraduationCap, Building2, BookOpen, CalendarPlus, CalendarDays,
-  BarChart3, Download, Mail, Bell, Trash2, Pencil, Plus, Printer, UserCheck,
+  BarChart3, Download, Mail, Bell, Trash2, Pencil, Plus, Printer, UserCheck, FileText, Upload,
 } from "lucide-react";
 
-type Tab = "dashboard" | "instructors" | "students" | "classrooms" | "courses" | "schedule-add" | "schedule-view" | "teacher-attendance" | "analytics" | "export" | "bulk-email" | "notifications";
+type Tab = "dashboard" | "instructors" | "students" | "classrooms" | "courses" | "schedule-add" | "schedule-view" | "materials" | "teacher-attendance" | "analytics" | "export" | "bulk-email" | "notifications";
 
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +16,7 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: "courses", label: "Courses", icon: BookOpen },
   { id: "schedule-add", label: "Schedule course", icon: CalendarPlus },
   { id: "schedule-view", label: "View schedule", icon: CalendarDays },
+  { id: "materials", label: "Lecture materials", icon: FileText },
   { id: "teacher-attendance", label: "Teacher attendance", icon: UserCheck },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "export", label: "Export", icon: Download },
