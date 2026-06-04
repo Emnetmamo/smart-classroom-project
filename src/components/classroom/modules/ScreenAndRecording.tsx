@@ -281,7 +281,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
           const t = teachers.find((x) => x.id === m.label);
           if (t) {
             log("Face Recognition", `Instructor confirmed: ${t.name} (${Math.round((1 - m.distance) * 100)}% match)`, "success");
-            checkInTeacher(t.id);
+            checkInTeacher(t.id, arrivalModeRef.current);
           }
         }
       }
