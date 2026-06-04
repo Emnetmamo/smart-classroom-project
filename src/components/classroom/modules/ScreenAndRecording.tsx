@@ -54,6 +54,9 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
   const [camOn, setCamOn] = useState(false);
   const [modelState, setModelState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [arrivalMode, setArrivalMode] = useState<"on-time" | "warning" | "late">("on-time");
+  const arrivalModeRef = useRef(arrivalMode);
+  useEffect(() => { arrivalModeRef.current = arrivalMode; }, [arrivalMode]);
   const knownTeachers = teachers.filter((t) => t.avatar);
 
   const autoMode = devices.sharing && !liveStream;
