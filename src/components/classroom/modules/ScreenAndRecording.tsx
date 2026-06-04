@@ -341,10 +341,12 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
       const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
         ? "video/webm;codecs=vp9,opus"
         : "video/webm";
-      const rec = new MediaRecorder(combined, { mimeType: mime });
+      const rec = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 4_000_000, audioBitsPerSecond: 128_000 });
       rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
-      rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      rec.onstop = async () => {
+        const raw = new Blob(chunksRef.current, { type: "video/webm" });
+        const durationMs = Date.now() - recordingStartRef.current;
+        const blob = await fixWebmDuration(raw, durationMs, { logger: false }).catch(() => raw);
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
         addRecording({
@@ -352,11 +354,12 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
           courseId: schedule.courseId ?? "live",
           title: `${schedule.course} · ${new Date().toLocaleDateString()}`,
           date: new Date().toISOString().slice(0, 10),
-          durationSec: elapsed,
+          durationSec: Math.round(durationMs / 1000),
           url,
         });
         log("Recording", `Saved ${(blob.size / 1024 / 1024).toFixed(1)} MB with audio · students notified`, "success");
       };
+      recordingStartRef.current = Date.now();
       rec.start(1000);
       recRef.current = rec;
 
