@@ -189,6 +189,8 @@ type Ctx = {
   logs: LogEntry[];
   teacherAttendance: TeacherAttendance[];
   studentAttendance: StudentAttendanceRecord[];
+  adminUsers: AdminUser[];
+  audit: AuditEntry[];
 
   // live state
   teacherPresent: boolean;
@@ -218,19 +220,28 @@ type Ctx = {
 
   // logging
   log: (module: string, message: string, level?: LogEntry["level"]) => void;
+  addAudit: (entry: Omit<AuditEntry, "id" | "time">) => void;
   setSchedule: (s: Partial<CurrentSchedule>) => void;
 
   // CRUD
   upsertStudent: (s: Student) => void;
   deleteStudent: (id: string) => void;
+  setStudentActive: (id: string, active: boolean) => void;
   upsertTeacher: (t: Teacher) => void;
   deleteTeacher: (id: string) => void;
+  setTeacherActive: (id: string, active: boolean) => void;
   upsertClassroom: (c: Classroom) => void;
   deleteClassroom: (id: string) => void;
   upsertCourse: (c: Course) => void;
   deleteCourse: (id: string) => void;
   upsertSession: (s: SessionRow) => void;
   deleteSession: (id: string) => void;
+  setSessionMaterial: (sessionId: string, material: SessionRow["material"] | undefined) => void;
+
+  // admin user mgmt
+  upsertAdminUser: (u: AdminUser) => void;
+  setAdminActive: (id: string, active: boolean) => void;
+  deleteAdminUser: (id: string) => void;
 
   // notifications
   sendNotification: (n: Omit<Notification, "id" | "time">) => void;
@@ -240,8 +251,8 @@ type Ctx = {
   addRecording: (r: Omit<Recording, "id">) => void;
 
   // auth (in-memory demo)
-  login: (role: "instructor" | "student", username: string, password: string) =>
-    { ok: true; id: string } | { ok: false; error: string };
+  login: (role: "instructor" | "student" | "coordinator" | "admin", username: string, password: string) =>
+    { ok: true; id: string; name: string } | { ok: false; error: string };
 };
 
 const ClassroomCtx = createContext<Ctx | null>(null);
