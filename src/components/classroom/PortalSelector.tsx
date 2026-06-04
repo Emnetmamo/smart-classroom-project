@@ -1,12 +1,13 @@
-import { Activity, ShieldCheck, GraduationCap, BookOpen } from "lucide-react";
+import { Activity, ShieldCheck, GraduationCap, BookOpen, Building } from "lucide-react";
 
-export type Portal = "system" | "instructor" | "student";
+export type Portal = "system" | "instructor" | "student" | "admin";
 
 export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
   const cards: { id: Portal; title: string; desc: string; icon: typeof Activity; tone: string }[] = [
-    { id: "system", title: "System Portal", desc: "Attendance, environment, screen sharing, recording, attention monitoring and the Coordinator/Admin workspace.", icon: ShieldCheck, tone: "from-primary/30 to-accent/20" },
+    { id: "system", title: "System Portal", desc: "In-class control: attendance, environment, screen sharing, recording, attention monitoring.", icon: ShieldCheck, tone: "from-primary/30 to-accent/20" },
     { id: "instructor", title: "Instructor Portal", desc: "Login required. View your classes, teaching hours, reschedule sessions, and message your students.", icon: GraduationCap, tone: "from-emerald-500/30 to-primary/20" },
     { id: "student", title: "Student Portal", desc: "Login required. See your schedule, slides, and recorded lectures organised by course.", icon: BookOpen, tone: "from-amber-500/30 to-pink-500/20" },
+    { id: "admin", title: "Admin Portal", desc: "Login required. Class Coordinator workspace plus General Admin — monitoring, devices, security, audit, backup, reports and user management.", icon: Building, tone: "from-fuchsia-500/30 to-primary/20" },
   ];
 
   return (
@@ -15,7 +16,7 @@ export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
         <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-primary/30 blur-3xl" />
         <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-accent/30 blur-3xl" />
       </div>
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-6xl">
         <div className="flex items-center gap-3 justify-center mb-3">
           <div className="w-10 h-10 rounded-lg bg-primary/20 grid place-items-center glow-primary">
             <Activity className="w-5 h-5 text-primary" />
@@ -27,7 +28,7 @@ export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
         </div>
         <p className="text-center text-sm text-muted-foreground mb-10">Choose a portal to continue.</p>
 
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {cards.map((c) => {
             const Icon = c.icon;
             return (
@@ -44,8 +45,9 @@ export function PortalSelector({ onPick }: { onPick: (p: Portal) => void }) {
             );
           })}
         </div>
-        <div className="mt-10 text-center text-xs text-muted-foreground">
-          Demo credentials · Instructors: <code>ayalew / Teacher@1234</code> · Students: <code>abera / Abera@1234</code>
+        <div className="mt-10 text-center text-xs text-muted-foreground leading-relaxed">
+          Demo credentials · Instructors: <code>ayalew / Teacher@1234</code> · Students: <code>abera / Abera@1234</code><br />
+          Coordinator: <code>coordinator / Coord@1234</code> · General Admin: <code>admin / Admin@1234</code>
         </div>
       </div>
     </div>

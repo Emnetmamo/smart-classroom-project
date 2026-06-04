@@ -2,12 +2,22 @@ import { useState } from "react";
 import { LogIn, ArrowLeft } from "lucide-react";
 import { useClassroom } from "@/lib/classroom-store";
 
+type Role = "instructor" | "student" | "coordinator" | "admin";
+
+const HINTS: Record<Role, { user: string; pass: string; help: string }> = {
+  instructor: { user: "ayalew", pass: "Teacher@1234", help: "Try ayalew, dagmawi, mulugeta, solomon — password Teacher@1234" },
+  student: { user: "abera", pass: "Abera@1234", help: "First name (lowercase) — password <Firstname>@1234, e.g. Abera@1234" },
+  coordinator: { user: "coordinator", pass: "Coord@1234", help: "Class Coordinator · coordinator / Coord@1234" },
+  admin: { user: "admin", pass: "Admin@1234", help: "General Admin · admin / Admin@1234" },
+};
+
 export function Login({ role, onSuccess, onBack }: {
-  role: "instructor" | "student";
+  role: Role;
   onSuccess: (id: string) => void;
   onBack: () => void;
 }) {
   const { login } = useClassroom();
+  const hint = HINTS[role];
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -33,24 +43,20 @@ export function Login({ role, onSuccess, onBack }: {
           <label className="block">
             <div className="text-xs text-muted-foreground mb-1">Username</div>
             <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus
-              placeholder={role === "instructor" ? "ayalew" : "abera"}
+              placeholder={hint.user}
               className="w-full px-3 py-2 rounded-md bg-input border border-border outline-none focus:border-primary text-sm" />
           </label>
           <label className="block">
             <div className="text-xs text-muted-foreground mb-1">Password</div>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder={role === "instructor" ? "Teacher@1234" : "Abera@1234"}
+              placeholder={hint.pass}
               className="w-full px-3 py-2 rounded-md bg-input border border-border outline-none focus:border-primary text-sm" />
           </label>
           {err && <div className="text-xs text-destructive-foreground bg-destructive/20 border border-destructive/40 px-3 py-2 rounded">{err}</div>}
           <button type="submit" className="w-full px-4 py-2.5 rounded-md bg-primary text-primary-foreground inline-flex items-center justify-center gap-2">
             <LogIn className="w-4 h-4" /> Sign in
           </button>
-          <div className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">
-            {role === "instructor"
-              ? <>Try <code>ayalew</code>, <code>dagmawi</code>, <code>mulugeta</code>, <code>solomon</code> · password <code>Teacher@1234</code></>
-              : <>Use your first name (lowercase) as username · password is <code>&lt;Firstname&gt;@1234</code> e.g. <code>Abera@1234</code></>}
-          </div>
+          <div className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">{hint.help}</div>
         </form>
       </div>
     </div>
