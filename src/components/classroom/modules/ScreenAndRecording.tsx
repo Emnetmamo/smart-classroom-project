@@ -319,20 +319,19 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
 
   // Auto-start canvas recording when preloaded material is rendering (no manual screen share).
   useEffect(() => {
-    if (!teacherPresent || !autoMode || !hasMaterial || pdfStatus !== "ready") return;
+    if (!teacherPresent || !autoMode || !hasMaterial || pdfStatus !== "ready" || !slideRenderedTick) return;
     if (recRef.current) return; // already recording
     const canvas = pdfCanvasRef.current;
     if (!canvas) return;
     let cancelled = false;
     (async () => {
       try {
-        // canvas captureStream gives us the live slide pixels.
-        const stream = (canvas as HTMLCanvasElement).captureStream(15);
         let mic: MediaStream | null = null;
         try { mic = await navigator.mediaDevices.getUserMedia({ audio: true }); }
         catch { log("Recording", "Microphone unavailable — recording slides without audio", "warn"); }
-        mic?.getAudioTracks().forEach((t) => { stream.addTrack(t); extraTracksRef.current.push(t); });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        mic?.getAudioTracks().forEach((t) => extraTracksRef.current.push(t));
+        const stream = makeCanvasRecorderStream(canvas, mic);
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); stopRecordingCanvasLoop(); return; }
 
         chunksRef.current = [];
         const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
@@ -347,18 +346,11 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
         rec.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
         rec.onstop = async () => {
           const raw = new Blob(chunksRef.current, { type: "video/webm" });
-          if (raw.size < 1024) {
-            log("Recording", "Recording too short to save", "warn");
-            stream.getTracks().forEach((t) => t.stop());
-            return;
-          }
           const durationMs = Date.now() - recordingStartRef.current;
-          const blob = await fixWebmDuration(raw, durationMs, { logger: false }).catch(() => raw);
-          const url = URL.createObjectURL(blob);
-          setRecordedUrl(url);
-          addRecording({ ...snap, date: new Date().toISOString().slice(0, 10), durationSec: Math.round(durationMs / 1000), url });
-          log("Recording", `Saved preloaded-slide recording · ${(blob.size / 1024 / 1024).toFixed(1)} MB — available to enrolled students`, "success");
+          await saveRecordingBlob(raw, durationMs, snap);
           stream.getTracks().forEach((t) => t.stop());
+          stopRecordingCanvasLoop();
+          closeAudioContexts();
         };
         recordingStartRef.current = Date.now();
         rec.start(1000);
@@ -369,7 +361,7 @@ export function ScreenAndRecording({ mode, backgroundActive = false, onJumpBack 
       }
     })();
     return () => { cancelled = true; };
-  }, [teacherPresent, autoMode, hasMaterial, pdfStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [teacherPresent, autoMode, hasMaterial, pdfStatus, slideRenderedTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // ---------- Face verification ----------
