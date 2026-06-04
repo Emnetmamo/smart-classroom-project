@@ -348,7 +348,7 @@ function UsersTab() {
           <button key={g} onClick={() => setGroup(g)} className={`text-xs px-3 py-1.5 rounded-md border ${group===g ? "bg-primary text-primary-foreground border-primary" : "bg-secondary/40 border-border"}`}>{g}</button>
         ))}
         {group === "admins" && (
-          <button onClick={() => setNewUser({ id: "", username: "", name: "", role: "coordinator", active: true })} className="ml-auto text-xs px-2.5 py-1.5 rounded bg-accent text-accent-foreground inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add admin user</button>
+          <button onClick={() => setNewUser({ id: "", username: "", name: "", role: "coordinator", active: true })} className="ml-auto text-xs px-2.5 py-1.5 rounded bg-accent text-accent-foreground inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Register coordinator / admin</button>
         )}
       </div>
 
