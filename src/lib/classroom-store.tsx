@@ -450,7 +450,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
     ids.forEach((id) => checkIn(id, "face"));
   };
 
-  const checkInTeacher: Ctx["checkInTeacher"] = (teacherId) => {
+  const checkInTeacher: Ctx["checkInTeacher"] = (teacherId, latenessOverride) => {
     const t = teachers.find((x) => x.id === teacherId);
     if (!t) return;
 
