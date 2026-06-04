@@ -10,7 +10,7 @@ import { TempControl } from "@/components/classroom/modules/TempControl";
 import { AirQuality } from "@/components/classroom/modules/AirQuality";
 import { AttentionMonitor } from "@/components/classroom/modules/AttentionMonitor";
 import { ScreenAndRecording } from "@/components/classroom/modules/ScreenAndRecording";
-import { CoordinatorWorkspace } from "@/components/classroom/modules/CoordinatorWorkspace";
+
 import { PortalSelector, type Portal } from "@/components/classroom/PortalSelector";
 import { Login } from "@/components/classroom/Login";
 import { InstructorPortal, StudentPortal } from "@/components/classroom/Portals";
