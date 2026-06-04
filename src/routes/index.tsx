@@ -114,5 +114,3 @@ function SystemPortalShell({ onBack }: { onBack: () => void }) {
     </Shell>
   );
 }
-// Keep CoordinatorWorkspace import alive for tree-shake-safety (used elsewhere).
-void CoordinatorWorkspace;
